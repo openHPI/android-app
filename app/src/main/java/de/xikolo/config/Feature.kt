@@ -12,9 +12,6 @@ import de.xikolo.utils.extensions.resExists
 object Feature {
 
     @JvmField
-    val HLS_VIDEO = Config.DEBUG
-
-    @JvmField
     val PIP =
         SDK_INT >= 26 && App.instance.packageManager
             .hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)

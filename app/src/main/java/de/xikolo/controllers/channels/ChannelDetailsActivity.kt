@@ -50,7 +50,10 @@ class ChannelDetailsActivity : CollapsingToolbarViewModelActivity<ChannelViewMod
         collapsingToolbar.setBackgroundColor(color)
         collapsingToolbar.setStatusBarScrimColor(color)
 
-        if (channel.stageStream?.hdUrl != null || channel.stageStream?.sdUrl != null) {
+        if (channel.stageStream?.hlsUrl != null ||
+            channel.stageStream?.hdUrl != null ||
+            channel.stageStream?.sdUrl != null
+        ) {
             imageView.visibility = View.GONE
             lockCollapsingToolbar(channel.title)
         } else if (channel.imageUrl != null) {

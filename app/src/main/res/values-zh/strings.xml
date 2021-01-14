@@ -95,12 +95,6 @@
 
     <string name="dialog_app_being_prepared">请稍等，正在准备应用程序。</string>
 
-    <string name="dialog_storage_migration">当前有文件存储在%1$s，您是否要将其移动到%2$s？</string>
-    <string name="dialog_storage_migration_confirm">迁移</string>
-    <string name="dialog_storage_migration_title">储存体迁移</string>
-    <string name="dialog_storage_migration_message">迁移进行中。请等待过程结束。请勿移除该储存体媒介。</string>
-    <string name="dialog_storage_migration_successful">迁移成功！</string>
-
     <string name="dialog_api_deprecation_title">更新%1$s </string>
     <string name="dialog_api_deprecation_message">除非您更新应用程序，否则%1$s将不\会在%2$s后运行。</string>
     <string name="dialog_api_deprecation_yes">更新</string>
@@ -171,8 +165,8 @@
     <string name="scan_qr">请扫二维码</string>
     <string name="slides_as_pdf">PDF版课件</string>
     <string name="transcript_as_pdf">PDF版成绩单</string>
-    <string name="video_hd_as_mp4">MP4视频(高清)</string>
-    <string name="video_sd_as_mp4">MP4视频(标清)</string>
+    <string name="video">视频</string>
+    <string name="video_with_quality">视频 (质量: %1$s)</string>
     <string name="download">下载</string>
     <string name="open">打开</string>
     <string name="play">播放</string>
@@ -305,13 +299,16 @@
     <string name="settings_title_ask_open_external_content_lti">开启外部练习前先确认</string>
     <string name="settings_title_ask_open_external_content_peer">开启同行评估前先确认</string>
 
-    <string name="settings_category_data_usage">移动数据使用</string>
+    <string name="settings_category_data_usage">数据使用</string>
 
     <string name="settings_title_video_quality">限制视频的数据使用量</string>
     <string name="settings_summary_video_quality">仅用Wi-Fi串流高清视频</string>
 
     <string name="settings_title_download_network">限制下载的数据使用量</string>
     <string name="settings_summary_download_network">仅用Wi-Fi下载档案</string>
+
+    <string name="settings_title_video_download_quality">视频下载质量</string>
+    <string name="settings_summary_video_download_quality">默认质量: %s</string>
 
     <string name="settings_category_video">视频</string>
 
@@ -336,6 +333,11 @@
     <string name="settings_title_storage_external">SD卡</string>
     <string name="settings_summary_storage">%1$s: %2$s 可用。</string>
     <string name="settings_storage_addition">（当前选择）</string>
+
+    <string name="settings_video_download_quality_low">低</string>
+    <string name="settings_video_download_quality_medium">中</string>
+    <string name="settings_video_download_quality_high">高</string>
+    <string name="settings_video_download_quality_best">最佳</string>
 
     <!-- -->
     <string name="empty_message_documents_title">没有此课程的文件</string>

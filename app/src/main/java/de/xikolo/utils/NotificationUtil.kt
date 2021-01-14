@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.TaskStackBuilder
@@ -14,6 +15,7 @@ import androidx.core.content.ContextCompat
 import de.xikolo.BuildConfig
 import de.xikolo.R
 import de.xikolo.controllers.downloads.DownloadsActivity
+import de.xikolo.controllers.main.MainActivity
 import de.xikolo.receivers.NotificationDeletedReceiver
 import de.xikolo.storages.NotificationStorage
 
@@ -23,6 +25,7 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
         const val DOWNLOADS_CHANNEL_ID = BuildConfig.APPLICATION_ID + ".downloads"
         const val DOWNLOAD_RUNNING_NOTIFICATION_ID = 1000
         const val DOWNLOAD_COMPLETED_SUMMARY_NOTIFICATION_ID = 1001
+        const val DOWNLOAD_RUNNING_NOTIFICATION_GROUP = "download_running"
         const val DOWNLOAD_COMPLETED_NOTIFICATION_GROUP = "download_completed"
 
         const val NOTIFICATION_DELETED_KEY_DOWNLOAD_TITLE = "key_notification_deleted_title"
@@ -40,17 +43,8 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
         }
     }
 
-    private var notificationManager: NotificationManager? = null
-
-    private fun getManager(): NotificationManager? {
-        if (notificationManager == null) {
-            synchronized(NotificationUtil::class.java) {
-                if (notificationManager == null) {
-                    notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                }
-            }
-        }
-        return notificationManager
+    private val manager: NotificationManager by lazy {
+        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 
     init {
@@ -58,11 +52,75 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
     }
 
     fun notify(id: Int, notification: Notification?) {
-        getManager()?.notify(id, notification)
+        manager.notify(id, notification)
     }
 
     fun cancel(id: Int) {
-        getManager()?.cancel(id)
+        manager.cancel(id)
+    }
+
+    fun getDownloadRunningGroupNotification(count: Int): Notification {
+        return NotificationCompat.Builder(this, DOWNLOADS_CHANNEL_ID)
+            .setGroupSummary(true)
+            .setGroup(DOWNLOAD_RUNNING_NOTIFICATION_GROUP)
+            .setColor(ContextCompat.getColor(this, R.color.apptheme_primary))
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setLargeIcon(
+                BitmapFactory.decodeResource(
+                    resources,
+                    android.R.drawable.stat_sys_download
+                )
+            )
+            .setContentText(
+                getString(
+                    R.string.notification_multiple_downloads_running,
+                    count
+                )
+            )
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+    }
+
+    fun getDownloadRunningNotification(): NotificationCompat.Builder {
+        return NotificationCompat.Builder(this, DOWNLOADS_CHANNEL_ID)
+            .setColor(ContextCompat.getColor(this, R.color.apptheme_primary))
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setLargeIcon(
+                BitmapFactory.decodeResource(
+                    resources,
+                    android.R.drawable.stat_sys_download
+                )
+            )
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    this,
+                    0,
+                    Intent(this, MainActivity::class.java),
+                    0
+                )
+            )
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setGroup(DOWNLOAD_RUNNING_NOTIFICATION_GROUP)
+    }
+
+    fun updateDownloadRunningNotification(
+        notificationBuilder: NotificationCompat.Builder,
+        title: String,
+        progress: Int,
+        cancelIntent: PendingIntent
+    ): NotificationCompat.Builder {
+        return notificationBuilder
+            .setProgress(
+                100,
+                progress,
+                false
+            )
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                getString(R.string.notification_downloads_cancel),
+                cancelIntent
+            )
+            .setContentTitle(title)
     }
 
     fun showDownloadCompletedNotification(title: String) {
@@ -98,16 +156,25 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
                     title
                 )
             )
+            .setPriority(NotificationCompat.PRIORITY_LOW)
     }
 
     private fun showDownloadSummaryNotification(notifications: List<String>) {
-        notify(DOWNLOAD_COMPLETED_SUMMARY_NOTIFICATION_ID, getDownloadSummaryNotification(notifications).build())
+        notify(
+            DOWNLOAD_COMPLETED_SUMMARY_NOTIFICATION_ID,
+            getDownloadSummaryNotification(notifications).build()
+        )
     }
 
-    private fun getDownloadSummaryNotification(notifications: List<String>): NotificationCompat.Builder {
+    private fun getDownloadSummaryNotification(
+        notifications: List<String>
+    ): NotificationCompat.Builder {
         val title: String
         if (notifications.size > 1) {
-            title = String.format(getString(R.string.notification_multiple_downloads_completed), notifications.size)
+            title = String.format(
+                getString(R.string.notification_multiple_downloads_completed),
+                notifications.size
+            )
         } else {
             title = getString(R.string.notification_download_completed)
         }
@@ -128,8 +195,19 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
             .setGroup(DOWNLOAD_COMPLETED_NOTIFICATION_GROUP)
             .setGroupSummary(true)
             .setStyle(inboxStyle)
-            .setContentIntent(createDownloadCompletedContentIntent(DownloadsActivity::class.java, NOTIFICATION_DELETED_KEY_DOWNLOAD_ALL, "true"))
-            .setDeleteIntent(createDownloadCompletedDeleteIntent(NOTIFICATION_DELETED_KEY_DOWNLOAD_ALL, "true"))
+            .setContentIntent(
+                createDownloadCompletedContentIntent(
+                    DownloadsActivity::class.java,
+                    NOTIFICATION_DELETED_KEY_DOWNLOAD_ALL,
+                    "true"
+                )
+            )
+            .setDeleteIntent(
+                createDownloadCompletedDeleteIntent(
+                    NOTIFICATION_DELETED_KEY_DOWNLOAD_ALL,
+                    "true"
+                )
+            )
     }
 
     private fun createChannels() {
@@ -141,11 +219,13 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
             )
             downloadsChannel.setShowBadge(false)
 
-            getManager()?.createNotificationChannel(downloadsChannel)
+            manager.createNotificationChannel(downloadsChannel)
         }
     }
 
-    private fun createDownloadCompletedContentIntent(parentActivityClass: Class<*>, extraKey: String, extraValue: String): PendingIntent? {
+    private fun createDownloadCompletedContentIntent(
+        parentActivityClass: Class<*>, extraKey: String, extraValue: String
+    ): PendingIntent? {
         // Creates an explicit intent for an Activity in your app
         val resultIntent = Intent(this, parentActivityClass)
 
@@ -166,11 +246,12 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
         )
     }
 
-    private fun createDownloadCompletedDeleteIntent(extraKey: String, extraValue: String): PendingIntent {
+    private fun createDownloadCompletedDeleteIntent(
+        extraKey: String, extraValue: String
+    ): PendingIntent {
         val deleteIntent = Intent(this, NotificationDeletedReceiver::class.java)
         deleteIntent.action = NotificationDeletedReceiver.INTENT_ACTION_NOTIFICATION_DELETED
         deleteIntent.putExtra(extraKey, extraValue)
         return PendingIntent.getBroadcast(this, 0, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT)
     }
-
 }

@@ -1,22 +1,28 @@
 package de.xikolo.download
 
+import de.xikolo.models.Storage
+
 interface DownloadHandler<I : DownloadIdentifier, R : DownloadRequest> {
 
     fun isDownloadingAnything(callback: (Boolean) -> Unit)
 
     fun download(
         request: R,
-        listener: ((DownloadStatus?) -> Unit)? = null,
         callback: ((I?) -> Unit)? = null
     )
 
-    fun cancel(
+    fun delete(
         identifier: I,
         callback: ((Boolean) -> Unit)? = null
     )
 
-    fun status(
+    fun listen(
         identifier: I,
-        callback: (DownloadStatus?) -> Unit
+        listener: ((DownloadStatus) -> Unit)?
+    )
+
+    fun getDownloads(
+        storage: Storage,
+        callback: (Map<I, Pair<DownloadStatus, String?>>) -> Unit
     )
 }

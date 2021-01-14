@@ -5,8 +5,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.os.Message
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ScaleGestureDetector
 import android.view.View
@@ -19,8 +19,6 @@ import com.github.rubensousa.previewseekbar.PreviewBar
 import com.github.rubensousa.previewseekbar.PreviewSeekBar
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import de.xikolo.R
-import de.xikolo.config.Config
-import de.xikolo.config.Feature
 import de.xikolo.controllers.base.BaseFragment
 import de.xikolo.controllers.helper.VideoSettingsHelper
 import de.xikolo.models.VideoStream
@@ -57,7 +55,11 @@ open class VideoStreamPlayerFragment : BaseFragment() {
         private const val BUNDLING_KEY_STREAM = "stream"
         private const val BUNDLING_KEY_AUTOPLAY = "autoplay"
 
-        fun bundle(instance: VideoStreamPlayerFragment, stream: VideoStream, autoPlay: Boolean = true) {
+        fun bundle(
+            instance: VideoStreamPlayerFragment,
+            stream: VideoStream,
+            autoPlay: Boolean = true
+        ) {
             val arguments = instance.arguments ?: Bundle()
             arguments.putAll(
                 Bundle().apply {
@@ -158,7 +160,7 @@ open class VideoStreamPlayerFragment : BaseFragment() {
 
     private lateinit var controlsVisibilityHandler: ControlsVisibilityHandler
 
-    private var isOfflineVideo = false
+    protected var isOfflineVideo = false
 
     private val applicationPreferences = ApplicationPreferences()
 
@@ -184,7 +186,7 @@ open class VideoStreamPlayerFragment : BaseFragment() {
         get() = if (isOfflineVideo) "offline" else "online"
 
     val currentQualityString: String
-        get() = videoSettingsHelper.currentQuality.name.toLowerCase(Locale.ENGLISH)
+        get() = videoSettingsHelper.currentMode.name.toLowerCase(Locale.ENGLISH)
 
     var isShowingControls: Boolean = false
         private set
@@ -200,27 +202,38 @@ open class VideoStreamPlayerFragment : BaseFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        VideoStreamPlayerFragment.unbundle(this, arguments)
+        unbundle(this, arguments)
 
         controlsVisibilityHandler = ControlsVisibilityHandler(this)
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
         return inflater.inflate(R.layout.fragment_video_player, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val gestureDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-            override fun onScaleEnd(detector: ScaleGestureDetector?) {
-                detector?.let {
-                    val immersive = it.scaleFactor > 1
-                    videoSettingsHelper.isImmersiveModeEnabled = immersive
-                    changeImmersiveMode(videoSettingsHelper.isImmersiveModeEnabled, immersive, true)
+        val gestureDetector = ScaleGestureDetector(
+            context,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScaleEnd(detector: ScaleGestureDetector?) {
+                    detector?.let {
+                        val immersive = it.scaleFactor > 1
+                        videoSettingsHelper.isImmersiveModeEnabled = immersive
+                        changeImmersiveMode(
+                            videoSettingsHelper.isImmersiveModeEnabled,
+                            immersive,
+                            true
+                        )
+                    }
                 }
             }
-        })
+        )
 
         this.view?.setOnTouchListener { _, event ->
             if (!settingsOpen && controllerInterface?.isImmersiveModeAvailable() == true) {
@@ -304,7 +317,7 @@ open class VideoStreamPlayerFragment : BaseFragment() {
                     }
 
                     if (!hasEnded && isPlaying) {
-                        Handler().postDelayed(
+                        Handler(Looper.getMainLooper()).postDelayed(
                             Thread(this),
                             SEEKBAR_UPDATER_INTERVAL
                         )
@@ -408,24 +421,26 @@ open class VideoStreamPlayerFragment : BaseFragment() {
             settingsContainer = it
         }
         bottomSheetBehavior = BottomSheetBehavior.from(settingsContainer)
-        bottomSheetBehavior?.setBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
-            override fun onStateChanged(bottomSheet: View, newState: Int) {
-                if (newState == BottomSheetBehavior.STATE_HIDDEN) {
-                    settingsOpen = false
-                    controllerInterface?.onSettingsClosed()
-                    showControls()
+        bottomSheetBehavior?.addBottomSheetCallback(
+            object : BottomSheetBehavior.BottomSheetCallback() {
+                override fun onStateChanged(bottomSheet: View, newState: Int) {
+                    if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                        settingsOpen = false
+                        controllerInterface?.onSettingsClosed()
+                        showControls()
+                    }
+                    if (newState == BottomSheetBehavior.STATE_EXPANDED) {
+                        settingsOpen = true
+                        controllerInterface?.onSettingsOpened()
+                        showControls(Integer.MAX_VALUE)
+                    }
                 }
-                if (newState == BottomSheetBehavior.STATE_EXPANDED) {
-                    settingsOpen = true
-                    controllerInterface?.onSettingsOpened()
-                    showControls(Integer.MAX_VALUE)
-                }
-            }
 
-            override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                controllerInterface?.onSettingsSliding(slideOffset)
+                override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                    controllerInterface?.onSettingsSliding(slideOffset)
+                }
             }
-        })
+        )
 
         showProgress()
         setupVideo()
@@ -451,17 +466,20 @@ open class VideoStreamPlayerFragment : BaseFragment() {
                     }
                 }
 
-                override fun onQualityChanged(
-                    old: VideoSettingsHelper.VideoMode,
-                    new: VideoSettingsHelper.VideoMode
+                override fun onPlaybackModeChanged(
+                    old: VideoSettingsHelper.PlaybackMode,
+                    new: VideoSettingsHelper.PlaybackMode
                 ) {
                     hideSettings()
                     if (old != new) {
-                        changeQuality(old, new, true)
+                        changePlaybackMode(old, new, true)
                     }
                 }
 
-                override fun onPlaybackSpeedChanged(old: VideoSettingsHelper.PlaybackSpeed, new: VideoSettingsHelper.PlaybackSpeed) {
+                override fun onPlaybackSpeedChanged(
+                    old: VideoSettingsHelper.PlaybackSpeed,
+                    new: VideoSettingsHelper.PlaybackSpeed
+                ) {
                     hideSettings()
                     if (old != new) {
                         changePlaybackSpeed(old, new, true)
@@ -494,12 +512,12 @@ open class VideoStreamPlayerFragment : BaseFragment() {
                 }
             },
             object : VideoSettingsHelper.VideoInfoCallback {
-                override fun isAvailable(videoMode: VideoSettingsHelper.VideoMode): Boolean {
-                    return getVideoAvailability(videoMode)
+                override fun isAvailable(mode: VideoSettingsHelper.PlaybackMode): Boolean {
+                    return getVideoAvailability(mode)
                 }
 
-                override fun isOfflineAvailable(videoMode: VideoSettingsHelper.VideoMode): Boolean {
-                    return getOfflineAvailability(videoMode)
+                override fun isOfflineAvailable(mode: VideoSettingsHelper.PlaybackMode): Boolean {
+                    return getOfflineAvailability(mode)
                 }
 
                 override fun isImmersiveModeAvailable(): Boolean {
@@ -507,85 +525,115 @@ open class VideoStreamPlayerFragment : BaseFragment() {
                 }
             }
         )
-        videoSettingsHelper.currentQuality = getVideoMode()
+        videoSettingsHelper.currentMode = getPlaybackMode()
 
         controllerInterface?.onImmersiveModeChanged(videoSettingsHelper.isImmersiveModeEnabled)
     }
 
-    protected open fun getVideoAvailability(videoMode: VideoSettingsHelper.VideoMode): Boolean {
-        return (videoMode == VideoSettingsHelper.VideoMode.HD && videoStream.hdUrl != null)
-            || (videoMode == VideoSettingsHelper.VideoMode.SD && videoStream.sdUrl != null)
-            || (videoMode == VideoSettingsHelper.VideoMode.AUTO && Feature.HLS_VIDEO && videoStream.hlsUrl != null)
+    protected open fun getVideoAvailability(mode: VideoSettingsHelper.PlaybackMode): Boolean {
+        return when (mode) {
+            VideoSettingsHelper.PlaybackMode.AUTO,
+            VideoSettingsHelper.PlaybackMode.LOW,
+            VideoSettingsHelper.PlaybackMode.MEDIUM,
+            VideoSettingsHelper.PlaybackMode.HIGH,
+            VideoSettingsHelper.PlaybackMode.BEST -> videoStream.hlsUrl != null
+            VideoSettingsHelper.PlaybackMode.LEGACY_HD ->
+                videoStream.hlsUrl == null && videoStream.hdUrl != null
+            VideoSettingsHelper.PlaybackMode.LEGACY_SD ->
+                videoStream.hlsUrl == null && videoStream.sdUrl != null
+        }
     }
 
-    protected open fun getSubtitleList(): List<VideoSubtitles>? {
-        return null
+    protected open fun getSubtitleList(): List<VideoSubtitles> {
+        return emptyList()
     }
 
-    protected open fun getOfflineAvailability(videoMode: VideoSettingsHelper.VideoMode): Boolean {
+    protected open fun getOfflineAvailability(mode: VideoSettingsHelper.PlaybackMode): Boolean {
         return false
     }
 
-    protected open fun getVideoMode(): VideoSettingsHelper.VideoMode {
-        return if (getVideoAvailability(VideoSettingsHelper.VideoMode.AUTO)) {
-            VideoSettingsHelper.VideoMode.AUTO
-        } else if (context.connectivityType == ConnectivityType.WIFI
-            || !applicationPreferences.isVideoQualityLimitedOnMobile) {
-            if (getVideoAvailability(VideoSettingsHelper.VideoMode.HD)) {
-                VideoSettingsHelper.VideoMode.HD
-            } else {
-                VideoSettingsHelper.VideoMode.SD
+    protected open fun getPlaybackMode(): VideoSettingsHelper.PlaybackMode {
+        return if (getVideoAvailability(VideoSettingsHelper.PlaybackMode.AUTO)) {
+            VideoSettingsHelper.PlaybackMode.AUTO
+        } else if (context.connectivityType == ConnectivityType.WIFI ||
+            !applicationPreferences.isVideoQualityLimitedOnMobile
+        ) {
+            when {
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.BEST) ->
+                    VideoSettingsHelper.PlaybackMode.BEST
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.HIGH) ->
+                    VideoSettingsHelper.PlaybackMode.HIGH
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.MEDIUM) ->
+                    VideoSettingsHelper.PlaybackMode.MEDIUM
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.LOW) ->
+                    VideoSettingsHelper.PlaybackMode.LOW
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.LEGACY_HD) ->
+                    VideoSettingsHelper.PlaybackMode.LEGACY_HD
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.LEGACY_SD) ->
+                    VideoSettingsHelper.PlaybackMode.LEGACY_SD
+                else -> throw IllegalArgumentException("No supported playback mode")
             }
         } else {
-            if (getVideoAvailability(VideoSettingsHelper.VideoMode.SD)) {
-                VideoSettingsHelper.VideoMode.SD
-            } else {
-                VideoSettingsHelper.VideoMode.HD
+            when {
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.MEDIUM) ->
+                    VideoSettingsHelper.PlaybackMode.MEDIUM
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.LOW) ->
+                    VideoSettingsHelper.PlaybackMode.LOW
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.HIGH) ->
+                    VideoSettingsHelper.PlaybackMode.HIGH
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.BEST) ->
+                    VideoSettingsHelper.PlaybackMode.BEST
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.LEGACY_SD) ->
+                    VideoSettingsHelper.PlaybackMode.LEGACY_SD
+                getVideoAvailability(VideoSettingsHelper.PlaybackMode.LEGACY_HD) ->
+                    VideoSettingsHelper.PlaybackMode.LEGACY_HD
+                else -> throw IllegalArgumentException("No supported playback mode")
             }
         }
     }
 
-    protected open fun getSubtitleUri(currentSubtitles: VideoSubtitles): String {
-        return currentSubtitles.vttUrl
-    }
-
-    protected open fun getSubtitleLanguage(currentSubtitles: VideoSubtitles): String {
-        return currentSubtitles.language
-    }
-
-    protected open fun setVideoUri(currentQuality: VideoSettingsHelper.VideoMode): Boolean {
-        val stream: String
-        val isHls: Boolean
-
-        when (currentQuality) {
-            VideoSettingsHelper.VideoMode.HD -> {
-                stream = videoStream.hdUrl
-                isHls = false
-            }
-            VideoSettingsHelper.VideoMode.SD -> {
-                stream = videoStream.sdUrl
-                isHls = false
-            }
-            else                             -> {
-                stream = videoStream.hlsUrl
-                isHls = true
-            }
-        }
-
+    protected open fun setVideo(mode: VideoSettingsHelper.PlaybackMode): Boolean {
         return when {
-            context.isOnline                                                       -> { // device has internet connection
-                if (isHls) {
-                    setHlsVideoUri(stream)
-                } else {
-                    setVideoUri(stream)
+            context.isOnline -> { // device has internet connection
+                when (mode) {
+                    VideoSettingsHelper.PlaybackMode.AUTO -> {
+                        playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
+                        playerView.setDesiredBitrate(null)
+                    }
+                    VideoSettingsHelper.PlaybackMode.LOW -> {
+                        playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
+                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.LOW.bitrate)
+                    }
+                    VideoSettingsHelper.PlaybackMode.MEDIUM -> {
+                        playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
+                        playerView.setDesiredBitrate(
+                            VideoSettingsHelper.VideoQuality.MEDIUM.bitrate
+                        )
+                    }
+                    VideoSettingsHelper.PlaybackMode.HIGH -> {
+                        playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
+                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.HIGH.bitrate)
+                    }
+                    VideoSettingsHelper.PlaybackMode.BEST -> {
+                        playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
+                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.BEST.bitrate)
+                    }
+                    VideoSettingsHelper.PlaybackMode.LEGACY_HD -> {
+                        playerView.setProgressiveVideoUri(Uri.parse(videoStream.hdUrl))
+                    }
+                    VideoSettingsHelper.PlaybackMode.LEGACY_SD -> {
+                        playerView.setProgressiveVideoUri(Uri.parse(videoStream.sdUrl))
+                    }
                 }
+                playerView.setSubtitleUris(
+                    getSubtitleList().associate {
+                        it.language to Uri.parse(it.vttUrl)
+                    }
+                )
+                isOfflineVideo = false
                 true
             }
-            currentQuality == VideoSettingsHelper.VideoMode.AUTO                   -> // retry with HD instead of HLS
-                setVideoUri(VideoSettingsHelper.VideoMode.HD)
-            videoSettingsHelper.currentQuality == VideoSettingsHelper.VideoMode.HD -> // retry with SD instead of HD
-                setVideoUri(VideoSettingsHelper.VideoMode.SD)
-            else                                                                   -> {
+            else -> {
                 warningContainer.visibility = View.VISIBLE
                 warningText.text = getString(R.string.video_notification_no_offline_video)
                 false
@@ -593,13 +641,21 @@ open class VideoStreamPlayerFragment : BaseFragment() {
         }
     }
 
-    protected open fun changeSubtitles(oldSubtitles: VideoSubtitles?, newSubtitles: VideoSubtitles?, fromUser: Boolean) {
+    protected open fun changeSubtitles(
+        oldSubtitles: VideoSubtitles?,
+        newSubtitles: VideoSubtitles?,
+        fromUser: Boolean
+    ) {
         showProgress()
         updateSubtitles()
         prepare()
     }
 
-    protected open fun changeQuality(oldVideoMode: VideoSettingsHelper.VideoMode, newVideoMode: VideoSettingsHelper.VideoMode, fromUser: Boolean) {
+    protected open fun changePlaybackMode(
+        oldMode: VideoSettingsHelper.PlaybackMode,
+        newMode: VideoSettingsHelper.PlaybackMode,
+        fromUser: Boolean
+    ) {
         showProgress()
         if (updateVideo()) {
             prepare()
@@ -608,7 +664,10 @@ open class VideoStreamPlayerFragment : BaseFragment() {
         }
     }
 
-    protected open fun changePlaybackSpeed(oldSpeed: VideoSettingsHelper.PlaybackSpeed, newSpeed: VideoSettingsHelper.PlaybackSpeed, fromUser: Boolean) {
+    protected open fun changePlaybackSpeed(
+        oldSpeed: VideoSettingsHelper.PlaybackSpeed, newSpeed: VideoSettingsHelper.PlaybackSpeed,
+        fromUser: Boolean
+    ) {
         updatePlaybackSpeed()
     }
 
@@ -767,7 +826,7 @@ open class VideoStreamPlayerFragment : BaseFragment() {
     private fun updateSubtitles() {
         val currentSubtitles = videoSettingsHelper.currentVideoSubtitles
         if (currentSubtitles != null) {
-            playerView.showSubtitles(getSubtitleUri(currentSubtitles), getSubtitleLanguage(currentSubtitles))
+            playerView.showSubtitles(currentSubtitles.language)
         } else {
             playerView.removeSubtitles()
         }
@@ -776,13 +835,14 @@ open class VideoStreamPlayerFragment : BaseFragment() {
     private fun updateVideo(): Boolean {
         warningContainer.visibility = View.GONE
 
-        if (setVideoUri(videoSettingsHelper.currentQuality)) {
+        if (setVideo(videoSettingsHelper.currentMode)) {
             updateSubtitles()
             updatePlaybackSpeed()
             if (isOfflineVideo) {
-                playerView.uri?.let {
+                // ToDo
+                /*playerView.uri?.let {
                     playerView.setPreviewUri(it)
-                }
+                }*/
             } else if (context.isOnline) {
                 if (videoStream.sdUrl != null) {
                     playerView.setPreviewUri(Uri.parse(videoStream.sdUrl))
@@ -793,27 +853,6 @@ open class VideoStreamPlayerFragment : BaseFragment() {
             return true
         }
         return false
-    }
-
-    protected fun setLocalVideoUri(localUri: String) {
-        setVideoUri(localUri)
-        isOfflineVideo = true
-    }
-
-    private fun setHlsVideoUri(hlsUri: String) {
-        if (Config.DEBUG) {
-            Log.i(TAG, "HLS Video HOST_URL: $hlsUri")
-        }
-        playerView.setVideoURI(Uri.parse(hlsUri), true)
-        isOfflineVideo = false
-    }
-
-    private fun setVideoUri(uri: String) {
-        if (Config.DEBUG) {
-            Log.i(TAG, "Video HOST_URL: $uri")
-        }
-        playerView.setVideoURI(Uri.parse(uri), false)
-        isOfflineVideo = false
     }
 
     private fun prepare() {
@@ -829,9 +868,15 @@ open class VideoStreamPlayerFragment : BaseFragment() {
     protected open fun saveCurrentPosition() {}
 
     private fun getTimeString(millis: Int): String {
-        return String.format(Locale.US, "%02d:%02d",
+        return String.format(
+            Locale.US,
+            "%02d:%02d",
             TimeUnit.MILLISECONDS.toMinutes(millis.toLong()),
-            TimeUnit.MILLISECONDS.toSeconds(millis.toLong()) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis.toLong()))
+            TimeUnit.MILLISECONDS.toSeconds(millis.toLong()) - TimeUnit.MINUTES.toSeconds(
+                TimeUnit.MILLISECONDS.toMinutes(
+                    millis.toLong()
+                )
+            )
         )
     }
 
@@ -862,8 +907,8 @@ open class VideoStreamPlayerFragment : BaseFragment() {
         fun onToggleFullscreen(): Boolean
     }
 
-    protected class ControlsVisibilityHandler(private val controller: VideoStreamPlayerFragment) : Handler() {
-
+    protected class ControlsVisibilityHandler(private val controller: VideoStreamPlayerFragment) :
+        Handler(Looper.getMainLooper()) {
         override fun handleMessage(message: Message) {
             when (message.what) {
                 MESSAGE_CONTROLS_FADE_OUT ->
@@ -873,5 +918,4 @@ open class VideoStreamPlayerFragment : BaseFragment() {
             }
         }
     }
-
 }

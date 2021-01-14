@@ -15,24 +15,26 @@ import de.xikolo.config.Feature
 import de.xikolo.controllers.dialogs.ConfirmDeleteDialog
 import de.xikolo.controllers.dialogs.ConfirmDeleteDialogAutoBundle
 import de.xikolo.controllers.helper.NetworkStateHelper
+import de.xikolo.download.DownloadIdentifier
+import de.xikolo.download.DownloadStatus
+import de.xikolo.download.Downloaders
 import de.xikolo.extensions.observe
 import de.xikolo.managers.PermissionManager
-import de.xikolo.models.Storage
+import de.xikolo.models.dao.CourseDao
 import de.xikolo.storages.ApplicationPreferences
-import de.xikolo.utils.extensions.createIfNotExists
-import de.xikolo.utils.extensions.deleteAll
-import de.xikolo.utils.extensions.foldersWithFiles
 import de.xikolo.utils.extensions.internalStorage
 import de.xikolo.utils.extensions.preferredStorage
 import de.xikolo.utils.extensions.sdcardStorage
 import de.xikolo.utils.extensions.showToast
-import java.io.File
-import java.util.ArrayList
 
-class DownloadsFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener, DownloadsAdapter.OnDeleteButtonClickedListener, NetworkStateHelper.NetworkStateOwner {
+class DownloadsFragment :
+    Fragment(), SwipeRefreshLayout.OnRefreshListener, NetworkStateHelper.NetworkStateOwner {
 
     companion object {
         val TAG: String = DownloadsFragment::class.java.simpleName
+
+        const val CATEGORY_DOCUMENTS = "documents"
+        const val CATEGORY_CERTIFICATES = "certificates"
     }
 
     private var adapter: DownloadsAdapter? = null
@@ -46,11 +48,15 @@ class DownloadsFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener, Down
 
         activity?.let { activity ->
             permissionManager = PermissionManager(activity)
-            adapter = DownloadsAdapter(this)
+            adapter = DownloadsAdapter()
         }
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
         // Inflate the layout for this fragment
         val layout = inflater.inflate(R.layout.fragment_downloads, container, false)
 
@@ -83,138 +89,209 @@ class DownloadsFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener, Down
         networkStateHelper.hideAnyProgress()
     }
 
+    private fun buildItems(
+        internalStorageDownloads: Map<DownloadIdentifier, Pair<DownloadStatus, String?>>,
+        sdcardStorageDownloads: Map<DownloadIdentifier, Pair<DownloadStatus, String?>>?
+    ) {
+        var internalAddition = ""
+        var sdcardAddition = ""
+
+        if (activity?.sdcardStorage != null) {
+            if (activity?.preferredStorage == activity?.sdcardStorage) {
+                sdcardAddition = " " + getString(R.string.settings_storage_addition)
+            } else {
+                internalAddition = " " + getString(R.string.settings_storage_addition)
+            }
+        }
+
+        adapter?.addItem(
+            getString(R.string.overall),
+            mutableListOf(
+                buildSummary(
+                    internalStorageDownloads,
+                    getString(R.string.settings_title_storage_internal) + internalAddition
+                )
+            ).apply {
+                if (sdcardStorageDownloads != null) {
+                    add(
+                        buildSummary(
+                            sdcardStorageDownloads,
+                            getString(R.string.settings_title_storage_external) + sdcardAddition
+                        )
+                    )
+                }
+            }
+        )
+
+        if (Feature.enabled("documents")) {
+            adapter?.addItem(
+                getString(R.string.tab_documents),
+                buildCategories(
+                    internalStorageDownloads,
+                    { it == CATEGORY_DOCUMENTS },
+                    { getString(R.string.settings_title_storage_internal) + internalAddition }
+                ).toMutableList()
+                    .apply {
+                        if (sdcardStorageDownloads != null) {
+                            addAll(
+                                buildCategories(
+                                    sdcardStorageDownloads,
+                                    { it == CATEGORY_DOCUMENTS },
+                                    {
+                                        getString(R.string.settings_title_storage_external) +
+                                            sdcardAddition
+                                    }
+                                )
+                            )
+                        }
+                    }
+            )
+        }
+
+        adapter?.addItem(
+            getString(R.string.tab_certificates),
+            buildCategories(
+                internalStorageDownloads,
+                { it == CATEGORY_CERTIFICATES },
+                { getString(R.string.settings_title_storage_internal) + internalAddition }
+            ).toMutableList()
+                .apply {
+                    if (sdcardStorageDownloads != null) {
+                        addAll(
+                            buildCategories(
+                                sdcardStorageDownloads,
+                                { it == CATEGORY_CERTIFICATES },
+                                {
+                                    getString(R.string.settings_title_storage_external) +
+                                        sdcardAddition
+                                }
+                            )
+                        )
+                    }
+                }
+        )
+
+        adapter?.addItem(
+            getString(R.string.courses) + if (sdcardStorageDownloads != null) {
+                " (" + getString(R.string.settings_title_storage_internal) + ")"
+            } else "",
+            buildCategories(
+                internalStorageDownloads,
+                { it != CATEGORY_CERTIFICATES && it != CATEGORY_DOCUMENTS },
+                { CourseDao.Unmanaged.find(it)?.title ?: "" }
+            )
+        )
+
+        if (sdcardStorageDownloads != null) {
+            adapter?.addItem(
+                getString(R.string.courses) +
+                    " (" + getString(R.string.settings_title_storage_external) + ")",
+                buildCategories(
+                    sdcardStorageDownloads,
+                    { it != CATEGORY_CERTIFICATES && it != CATEGORY_DOCUMENTS },
+                    { CourseDao.Unmanaged.find(it)?.title ?: "" }
+                )
+            )
+        }
+
+        showContent()
+    }
+
+    private fun buildSummary(
+        downloads: Map<DownloadIdentifier, Pair<DownloadStatus, String?>>,
+        title: String
+    ): DownloadsAdapter.DownloadCategory {
+        return DownloadsAdapter.DownloadCategory(
+            title,
+            downloads.values.sumOf {
+                it.first.takeIf { it.state == DownloadStatus.State.DOWNLOADED }?.totalBytes ?: 0L
+            },
+            -1 // hide number of files because of ExoPlayer Cache
+        ) { deleteDownloads(downloads.keys) }
+    }
+
+    private fun buildCategories(
+        downloads: Map<DownloadIdentifier, Pair<DownloadStatus, String?>>,
+        categoryFilter: (String) -> Boolean,
+        titleSelector: (String?) -> String
+    ): List<DownloadsAdapter.DownloadCategory> {
+        val downloadCategories: MutableList<DownloadsAdapter.DownloadCategory> =
+            mutableListOf()
+        downloads
+            .entries
+            .filter {
+                it.value.first.state == DownloadStatus.State.DOWNLOADED &&
+                    it.value.second?.takeIf { categoryFilter(it) } != null
+            }
+            .groupBy { it.value.second }
+            .mapValues { it.value.map { Pair(it.key, it.value.first) } }
+            .forEach {
+                downloadCategories.add(
+                    DownloadsAdapter.DownloadCategory(
+                        titleSelector(it.key),
+                        it.value.sumOf { it.second.totalBytes ?: 0L },
+                        it.value.count()
+                    ) { deleteDownloads(it.value.map { it.first }) }
+                )
+            }
+        return downloadCategories
+    }
+
+    private fun deleteDownloads(downloads: Collection<DownloadIdentifier>) {
+        fun executeDelete() {
+            showAnyProgress()
+            Downloaders.deleteDownloads(downloads) {
+                if (!it) {
+                    showToast(R.string.error_plain)
+                }
+                fetchItems()
+                hideAnyProgress()
+            }
+        }
+
+        val appPreferences = ApplicationPreferences()
+        if (appPreferences.confirmBeforeDeleting) {
+            val dialog =
+                ConfirmDeleteDialogAutoBundle.builder(true).build()
+            dialog.listener =
+                object : ConfirmDeleteDialog.Listener {
+                    override fun onDialogPositiveClick(
+                        dialog: DialogFragment
+                    ) {
+                        executeDelete()
+                    }
+
+                    override fun onDialogPositiveAndAlwaysClick(
+                        dialog: DialogFragment
+                    ) {
+                        appPreferences.confirmBeforeDeleting = false
+                        executeDelete()
+                    }
+                }
+            dialog.show(
+                requireActivity().supportFragmentManager,
+                ConfirmDeleteDialog.TAG
+            )
+        } else {
+            executeDelete()
+        }
+    }
+
     private fun fetchItems() {
         activity?.let { activity ->
             adapter?.clear()
-            if (permissionManager?.requestPermission(PermissionManager.WRITE_EXTERNAL_STORAGE) == 1) {
-                networkStateHelper.showContent()
-
-                // total items
-
-                var internalAddition = ""
-                var sdcardAddition = ""
-
-                val sdcardStorageAvailable = activity.sdcardStorage != null
-
-                if (sdcardStorageAvailable) {
-                    if (activity.preferredStorage.file == activity.sdcardStorage?.file) {
-                        sdcardAddition = " " + getString(R.string.settings_storage_addition)
-                    } else {
-                        internalAddition = " " + getString(R.string.settings_storage_addition)
-                    }
-                }
-
-                fun buildTotalItem(appFolder: String, title: String): DownloadsAdapter.FolderItem {
-                    // clean up the storage before fetching items
-                    Storage(File(appFolder)).clean()
-
-                    return DownloadsAdapter.FolderItem(
-                        title,
-                        appFolder
-                    )
-                }
-
-                var list: MutableList<DownloadsAdapter.FolderItem> = ArrayList()
-
-                val storage = activity.internalStorage
-                storage.file.createIfNotExists()
-                list.add(buildTotalItem(
-                    storage.file.absolutePath,
-                    getString(R.string.settings_title_storage_internal) + internalAddition
-                ))
-
-                activity.sdcardStorage?.let { sdcardStorage ->
-                    sdcardStorage.file.createIfNotExists()
-                    list.add(buildTotalItem(
-                        sdcardStorage.file.absolutePath,
-                        getString(R.string.settings_title_storage_external) + sdcardAddition
-                    ))
-                }
-
-                adapter?.addItem(getString(R.string.overall), list)
-
-                // documents
-
-                if (Feature.enabled("documents")) {
-                    list = ArrayList()
-
-                    list.add(buildTotalItem(
-                        activity.internalStorage.file.absolutePath + File.separator + "Documents",
-                        getString(R.string.settings_title_storage_internal) + internalAddition
-                    ))
+            if (permissionManager?.requestPermission(
+                    PermissionManager.WRITE_EXTERNAL_STORAGE
+                ) == 1
+            ) {
+                Downloaders.getDownloads(activity.internalStorage) {
+                    val internalStorageDownloads = it
 
                     activity.sdcardStorage?.let { sdcardStorage ->
-                        list.add(buildTotalItem(
-                            sdcardStorage.file.absolutePath + File.separator + "Documents",
-                            getString(R.string.settings_title_storage_external) + sdcardAddition
-                        ))
-                    }
-
-                    adapter?.addItem(getString(R.string.tab_documents), list)
-                }
-
-                // certificates
-
-                list = ArrayList()
-
-                list.add(buildTotalItem(
-                    activity.internalStorage.file.absolutePath + File.separator + "Certificates",
-                    getString(R.string.settings_title_storage_internal) + internalAddition
-                ))
-
-                activity.sdcardStorage?.let { sdcardStorage ->
-                    list.add(buildTotalItem(
-                        sdcardStorage.file.absolutePath + File.separator + "Certificates",
-                        getString(R.string.settings_title_storage_external) + sdcardAddition
-                    ))
-                }
-
-                adapter?.addItem(getString(R.string.tab_certificates), list)
-
-                // course folders
-
-                fun buildCourseItems(storage: File): List<DownloadsAdapter.FolderItem> {
-                    val folders = File(storage.absolutePath + File.separator + "Courses")
-                        .foldersWithFiles
-                    val folderList: MutableList<DownloadsAdapter.FolderItem> = ArrayList()
-                    if (folders.isNotEmpty()) {
-                        for (folder in folders) {
-                            val name = try {
-                                folder.substring(
-                                    folder.lastIndexOf(File.separator) + 1,
-                                    folder.lastIndexOf("_")
-                                )
-                            } catch (e: Exception) {
-                                folder
-                            }
-
-                            val item = DownloadsAdapter.FolderItem(name, folder)
-                            folderList.add(item)
+                        Downloaders.getDownloads(sdcardStorage) { sdcardStorageDownloads ->
+                            buildItems(internalStorageDownloads, sdcardStorageDownloads)
                         }
-                    }
-                    return folderList
-                }
-
-                val internalCourseTitle = if (sdcardStorageAvailable) {
-                    getString(R.string.courses) + " (" + getString(R.string.settings_title_storage_internal) + ")"
-                } else {
-                    getString(R.string.courses)
-                }
-                adapter?.addItem(
-                    internalCourseTitle,
-                    buildCourseItems(activity.internalStorage.file)
-                )
-
-                activity.sdcardStorage?.let { sdcardStorage ->
-                    val sdcardCourseTitle = if (sdcardStorageAvailable) {
-                        getString(R.string.courses) + " (" + getString(R.string.settings_title_storage_external) + ")"
-                    } else {
-                        getString(R.string.courses)
-                    }
-                    adapter?.addItem(
-                        sdcardCourseTitle,
-                        buildCourseItems(sdcardStorage.file)
-                    )
+                    } ?: buildItems(internalStorageDownloads, null)
                 }
             } else {
                 networkStateHelper.setMessageTitle(R.string.dialog_title_permissions)
@@ -226,40 +303,4 @@ class DownloadsFragment : Fragment(), SwipeRefreshLayout.OnRefreshListener, Down
             }
         }
     }
-
-    override fun onDeleteButtonClicked(item: DownloadsAdapter.FolderItem) {
-        activity?.let { activity ->
-            val appPreferences = ApplicationPreferences()
-
-            if (appPreferences.confirmBeforeDeleting) {
-                val dialog = ConfirmDeleteDialogAutoBundle.builder(true).build()
-                dialog.listener = object : ConfirmDeleteDialog.Listener {
-                    override fun onDialogPositiveClick(dialog: DialogFragment) {
-                        deleteFolder(item)
-                    }
-
-                    override fun onDialogPositiveAndAlwaysClick(dialog: DialogFragment) {
-                        appPreferences.confirmBeforeDeleting = false
-                        deleteFolder(item)
-                    }
-                }
-                dialog.show(activity.supportFragmentManager, ConfirmDeleteDialog.TAG)
-            } else {
-                deleteFolder(item)
-            }
-        }
-    }
-
-    private fun deleteFolder(item: DownloadsAdapter.FolderItem) {
-        val dir = File(item.path)
-
-        if (dir.exists()) {
-            dir.deleteAll()
-        } else {
-            showToast(R.string.error)
-        }
-
-        fetchItems()
-    }
-
 }

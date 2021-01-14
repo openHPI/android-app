@@ -11,17 +11,21 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import butterknife.BindView
 import com.yatatsu.autobundle.AutoBundleField
 import de.xikolo.R
 import de.xikolo.config.GlideApp
 import de.xikolo.controllers.base.ViewModelFragment
 import de.xikolo.controllers.helper.DownloadViewHelper
+import de.xikolo.controllers.helper.VideoSettingsHelper
 import de.xikolo.controllers.video.VideoItemPlayerActivityAutoBundle
+import de.xikolo.download.DownloadStatus
 import de.xikolo.extensions.observe
 import de.xikolo.models.DownloadAsset
 import de.xikolo.models.Item
 import de.xikolo.models.Video
+import de.xikolo.storages.ApplicationPreferences
 import de.xikolo.utils.LanalyticsUtil
 import de.xikolo.utils.LanguageUtil
 import de.xikolo.utils.extensions.cast
@@ -81,8 +85,6 @@ class VideoPreviewFragment : ViewModelFragment<VideoPreviewViewModel>() {
 
     @BindView(R.id.videoMetadata)
     lateinit var videoMetadata: ViewGroup
-
-    private var downloadViewHelpers: MutableList<DownloadViewHelper> = ArrayList()
 
     private var video: Video? = null
 
@@ -150,61 +152,93 @@ class VideoPreviewFragment : ViewModelFragment<VideoPreviewViewModel>() {
 
         displayAvailableSubtitles()
 
-        linearLayoutDownloads.removeAllViews()
-        downloadViewHelpers.clear()
-
-        activity?.let { activity ->
-            if (video.streamToPlay?.hdUrl != null) {
-                val dvh = DownloadViewHelper(
-                    activity,
-                    DownloadAsset.Course.Item.VideoHD(item, video),
-                    activity.getText(R.string.video_hd_as_mp4)
-                )
-                dvh.onOpenFileClick(R.string.play) { play() }
-                linearLayoutDownloads.addView(dvh.view)
-                downloadViewHelpers.add(dvh)
-            }
-
-            if (video.streamToPlay?.sdUrl != null) {
-                val dvh = DownloadViewHelper(
-                    activity,
-                    DownloadAsset.Course.Item.VideoSD(item, video),
-                    activity.getText(R.string.video_sd_as_mp4)
-                )
-                dvh.onOpenFileClick(R.string.play) { play() }
-                linearLayoutDownloads.addView(dvh.view)
-                downloadViewHelpers.add(dvh)
-            }
-
-            if (video.slidesUrl != null) {
-                val dvh = DownloadViewHelper(
-                    activity,
-                    DownloadAsset.Course.Item.Slides(item, video),
-                    activity.getText(R.string.slides_as_pdf)
-                )
-                linearLayoutDownloads.addView(dvh.view)
-                downloadViewHelpers.add(dvh)
-            }
-
-            if (video.transcriptUrl != null) {
-                val dvh = DownloadViewHelper(
-                    activity,
-                    DownloadAsset.Course.Item.Transcript(item, video),
-                    activity.getText(R.string.transcript_as_pdf)
-                )
-                linearLayoutDownloads.addView(dvh.view)
-                downloadViewHelpers.add(dvh)
-            }
-        }
-
         val minutes = TimeUnit.SECONDS.toMinutes(video.duration.toLong())
-        val seconds =
-            video.duration - TimeUnit.MINUTES.toSeconds(
-                TimeUnit.SECONDS.toMinutes(video.duration.toLong())
-            )
+        val seconds = video.duration -
+            TimeUnit.MINUTES.toSeconds(TimeUnit.SECONDS.toMinutes(video.duration.toLong()))
         textDuration.text = getString(R.string.duration, minutes, seconds)
 
         viewPlay.setOnClickListener { play() }
+
+        activity?.let {
+            updateDownloadViewHelpers(it, item, video)
+        }
+    }
+
+    private fun updateDownloadViewHelpers(activity: FragmentActivity, item: Item, video: Video) {
+        linearLayoutDownloads.removeAllViews()
+
+        if (video.streamToPlay?.hlsUrl != null) {
+            val videoLow = DownloadAsset.Course.Item.VideoHLS(
+                item,
+                video,
+                VideoSettingsHelper.VideoQuality.LOW
+            ) to activity.getString(R.string.settings_video_download_quality_low)
+            val videoMedium = DownloadAsset.Course.Item.VideoHLS(
+                item,
+                video,
+                VideoSettingsHelper.VideoQuality.MEDIUM
+            ) to activity.getString(R.string.settings_video_download_quality_medium)
+            val videoHigh = DownloadAsset.Course.Item.VideoHLS(
+                item,
+                video,
+                VideoSettingsHelper.VideoQuality.HIGH
+            ) to activity.getString(R.string.settings_video_download_quality_high)
+            val videoBest = DownloadAsset.Course.Item.VideoHLS(
+                item,
+                video,
+                VideoSettingsHelper.VideoQuality.BEST
+            ) to activity.getString(R.string.settings_video_download_quality_best)
+
+            val videoDefault = when (ApplicationPreferences().videoDownloadQuality) {
+                VideoSettingsHelper.VideoQuality.LOW -> videoLow
+                VideoSettingsHelper.VideoQuality.MEDIUM -> videoMedium
+                VideoSettingsHelper.VideoQuality.HIGH -> videoHigh
+                VideoSettingsHelper.VideoQuality.BEST -> videoBest
+            }
+
+            linearLayoutDownloads.addView(
+                DownloadViewHelper(
+                    activity,
+                    videoDefault.first,
+                    getString(R.string.video_with_quality).format(videoDefault.second),
+                    openText = getString(R.string.play),
+                    openClick = { play() }
+                ).view
+            )
+
+            (setOf(videoLow, videoMedium, videoHigh, videoBest) - videoDefault).forEach {
+                if (it.first.status.state != DownloadStatus.State.DELETED) {
+                    linearLayoutDownloads.addView(
+                        DownloadViewHelper(
+                            activity,
+                            it.first,
+                            getString(R.string.video_with_quality).format(it.second),
+                            openText = getString(R.string.play),
+                            openClick = { play() },
+                            onDeleted = { updateDownloadViewHelpers(activity, item, video) }
+                        ).view
+                    )
+                }
+            }
+        }
+
+        if (video.slidesUrl != null) {
+            val dvh = DownloadViewHelper(
+                activity,
+                DownloadAsset.Course.Item.Slides(item, video),
+                activity.getText(R.string.slides_as_pdf)
+            )
+            linearLayoutDownloads.addView(dvh.view)
+        }
+
+        if (video.transcriptUrl != null) {
+            val dvh = DownloadViewHelper(
+                activity,
+                DownloadAsset.Course.Item.Transcript(item, video),
+                activity.getText(R.string.transcript_as_pdf)
+            )
+            linearLayoutDownloads.addView(dvh.view)
+        }
     }
 
     private fun play() {

@@ -22,7 +22,7 @@ import de.xikolo.utils.extensions.isBetween
 import de.xikolo.utils.extensions.setMarkdownText
 import de.xikolo.utils.extensions.videoThumbnailSize
 import de.xikolo.views.CustomSizeImageView
-import java.util.*
+import java.util.Date
 
 class ChannelCourseListAdapter(fragment: Fragment, onCourseButtonClickListener: OnCourseButtonClickListener) : BaseCourseListAdapter<Triple<String?, VideoStream?, String?>>(fragment, onCourseButtonClickListener) {
 
@@ -59,13 +59,19 @@ class ChannelCourseListAdapter(fragment: Fragment, onCourseButtonClickListener: 
                     holder.text.visibility = View.GONE
                 }
 
-                if (stageStream?.hdUrl != null || stageStream?.sdUrl != null) {
+                if (stageStream?.hlsUrl != null ||
+                    stageStream?.hdUrl != null ||
+                    stageStream?.sdUrl != null
+                ) {
                     holder.videoPreview.visibility = View.VISIBLE
 
                     if (imageUrl != null) {
                         GlideApp.with(fragment)
                             .load(imageUrl)
-                            .override(holder.imageVideoThumbnail.forcedWidth, holder.imageVideoThumbnail.forcedHeight)
+                            .override(
+                                holder.imageVideoThumbnail.forcedWidth,
+                                holder.imageVideoThumbnail.forcedHeight
+                            )
                             .into(holder.imageVideoThumbnail)
                     }
 

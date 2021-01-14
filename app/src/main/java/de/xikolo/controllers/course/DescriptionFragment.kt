@@ -87,7 +87,9 @@ class DescriptionFragment : ViewModelFragment<DescriptionViewModel>() {
     private fun showDescription(course: Course) {
         when {
             course.teaserStream != null
-                && (course.teaserStream.hdUrl != null || course.teaserStream.sdUrl != null) -> {
+                && (course.teaserStream.hlsUrl != null ||
+                course.teaserStream.hdUrl != null ||
+                course.teaserStream.sdUrl != null) -> {
                 courseImage.visibility = View.GONE
                 videoPreview.visibility = View.VISIBLE
 

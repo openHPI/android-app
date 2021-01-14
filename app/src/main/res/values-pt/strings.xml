@@ -95,12 +95,6 @@
 
     <string name="dialog_app_being_prepared">Aguarde enquanto o aplicativo é preparado.</string>
 
-    <string name="dialog_storage_migration">No momento há arquivos armazenados em %1$s, deseja movê-los para %2$s?</string>
-    <string name="dialog_storage_migration_confirm">Migrar</string>
-    <string name="dialog_storage_migration_title">Migração de armazenamento</string>
-    <string name="dialog_storage_migration_message">Migração em andamento. Aguarde até o processo ser concluído. Não remova a meio de armazenamento.</string>
-    <string name="dialog_storage_migration_successful">Migração concluída com sucesso!</string>
-
     <string name="dialog_api_deprecation_title">Atualização %1$s</string>
     <string name="dialog_api_deprecation_message">%1$s não funcionará depois de %2$s a menos que o aplicativo seja atualizado.</string>
     <string name="dialog_api_deprecation_yes">Atualização</string>
@@ -171,8 +165,8 @@
     <string name="scan_qr">Efetue a leitura do QR Code</string>
     <string name="slides_as_pdf">Apresentação de slides em PDF</string>
     <string name="transcript_as_pdf">Transcrição em PDF</string>
-    <string name="video_hd_as_mp4">Vídeo (HD) em MP4</string>
-    <string name="video_sd_as_mp4">Vídeo (SD) em MP4</string>
+    <string name="video">Vídeo</string>
+    <string name="video_with_quality">Vídeo (Qualidade: %1$s)</string>
     <string name="download">Baixar</string>
     <string name="open">Abrir</string>
     <string name="play">Play</string>
@@ -305,13 +299,16 @@
     <string name="settings_title_ask_open_external_content_lti">Confirmar antes de abrir exercícios externos</string>
     <string name="settings_title_ask_open_external_content_peer">Confirmar antes de abrir as avaliações de pares</string>
 
-    <string name="settings_category_data_usage">Uso de Dados Móveis</string>
+    <string name="settings_category_data_usage">Uso de Dados</string>
 
     <string name="settings_title_video_quality">Limitar o uso de dados para vídeos</string>
     <string name="settings_summary_video_quality">Transmitir apenas vídeos HD com Wi-Fi</string>
 
     <string name="settings_title_download_network">Limitar o uso de dados para downloads</string>
     <string name="settings_summary_download_network">Baixar arquivos apenas com Wi-Fi</string>
+
+    <string name="settings_title_video_download_quality">Qualidade do vídeo descarregado</string>
+    <string name="settings_summary_video_download_quality">Qualidade por defeito: %s</string>
 
     <string name="settings_category_video">Vídeo</string>
 
@@ -336,6 +333,11 @@
     <string name="settings_title_storage_external">Cartão SD</string>
     <string name="settings_summary_storage">%1$s: %2$s livre.</string>
     <string name="settings_storage_addition">(Atualmente selecionado)</string>
+
+    <string name="settings_video_download_quality_low">Baixo</string>
+    <string name="settings_video_download_quality_medium">Médio</string>
+    <string name="settings_video_download_quality_high">Alto</string>
+    <string name="settings_video_download_quality_best">Melhor</string>
 
     <!-- -->
     <string name="empty_message_documents_title">Nenhum documento disponível para este curso</string>

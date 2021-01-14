@@ -2,8 +2,7 @@
 <resources>
 
     <string-array name="dialog_module_downloads_array" translatable="false">
-        <item>@string/video_hd_as_mp4</item>
-        <item>@string/video_sd_as_mp4</item>
+        <item>@string/video</item>
         <item>@string/slides_as_pdf</item>
     </string-array>
 
@@ -13,6 +12,7 @@
     <string name="preference_confirm_delete" translatable="false">confirm_delete</string>
     <string name="preference_video_quality" translatable="false">video_quality</string>
     <string name="preference_download_network" translatable="false">download_network</string>
+    <string name="preference_video_download_quality" translatable="false">video_download_quality</string>
     <string name="preference_video_playback_speed" translatable="false">video_playback_speed</string>
     <string name="preference_video_subtitles_language" translatable="false">video_subtitles_language</string>
     <string name="preference_video_immersive" translatable="false">video_immersive</string>
@@ -41,6 +41,24 @@
         <item>x1.5</item>
         <item>x1.8</item>
         <item>x2.0</item>
+    </string-array>
+
+    <string name="settings_default_value_video_download_quality" translatable="false">@string/settings_video_download_quality_high_value</string>
+    <string-array name="settings_entries_video_download_quality" translatable="false">
+        <item>@string/settings_video_download_quality_low</item>
+        <item>@string/settings_video_download_quality_medium</item>
+        <item>@string/settings_video_download_quality_high</item>
+        <item>@string/settings_video_download_quality_best</item>
+    </string-array>
+    <string name="settings_video_download_quality_low_value" translatable="false">low</string>
+    <string name="settings_video_download_quality_medium_value" translatable="false">medium</string>
+    <string name="settings_video_download_quality_high_value" translatable="false">high</string>
+    <string name="settings_video_download_quality_best_value" translatable="false">best</string>
+    <string-array name="settings_values_video_download_quality" translatable="false">
+        <item>@string/settings_video_download_quality_low_value</item>
+        <item>@string/settings_video_download_quality_medium_value</item>
+        <item>@string/settings_video_download_quality_high_value</item>
+        <item>@string/settings_video_download_quality_best_value</item>
     </string-array>
 
     <string name="settings_default_value_storage" translatable="false">@string/settings_title_storage_internal</string>

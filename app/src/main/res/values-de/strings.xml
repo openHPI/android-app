@@ -95,12 +95,6 @@
 
     <string name="dialog_app_being_prepared">Bitte warten Sie während die App vorbereitet wird.</string>
 
-    <string name="dialog_storage_migration">Im Moment sind Dateien in %1$s gespeichert, sollen diese nach %2$s verschoben werden?</string>
-    <string name="dialog_storage_migration_confirm">Verschieben</string>
-    <string name="dialog_storage_migration_title">Speichermigration</string>
-    <string name="dialog_storage_migration_message">Verschieben der Dateien läuft. Bitte warten Sie bis dies abgeschlossen ist. Entfernen Sie auf keinen Fall das Speichermedium.</string>
-    <string name="dialog_storage_migration_successful">Vorgang erfolgreich abgeschlossen!</string>
-
     <string name="dialog_api_deprecation_title">%1$s aktualisieren</string>
     <string name="dialog_api_deprecation_message">%1$s wird nach dem %2$s nur ausgeführt, wenn du die App aktualisierst.</string>
     <string name="dialog_api_deprecation_yes">Aktualisieren</string>
@@ -171,8 +165,8 @@
     <string name="scan_qr">Bitte QR Code scannen</string>
     <string name="slides_as_pdf">Präsentationsfolien als PDF</string>
     <string name="transcript_as_pdf">Transcript als PDF</string>
-    <string name="video_hd_as_mp4">Video (HD) als MP4</string>
-    <string name="video_sd_as_mp4">Video (SD) als MP4</string>
+    <string name="video">Video</string>
+    <string name="video_with_quality">Video (Qualität: %1$s)</string>
     <string name="download">Herunterladen</string>
     <string name="open">Öffnen</string>
     <string name="play">Abspielen</string>
@@ -312,13 +306,21 @@
     <string name="settings_summary_storage">%1$s: %2$s frei.</string>
     <string name="settings_storage_addition">(aktuelles Speichermedium)</string>
 
-    <string name="settings_category_data_usage">Mobile Datennutzung</string>
+    <string name="settings_category_data_usage">Datennutzung</string>
 
     <string name="settings_title_video_quality">Datennutzung für Videos beschränken</string>
     <string name="settings_summary_video_quality">HD Videos nur über WLAN streamen</string>
 
     <string name="settings_title_download_network">Datennutzung für Downloads beschränken</string>
     <string name="settings_summary_download_network">Downloads nur über WLAN laden</string>
+
+    <string name="settings_title_video_download_quality">Downloadqualität für Videos</string>
+    <string name="settings_summary_video_download_quality">Standardqualität: %s</string>
+
+    <string name="settings_video_download_quality_low">Niedrig</string>
+    <string name="settings_video_download_quality_medium">Mittel</string>
+    <string name="settings_video_download_quality_high">Hoch</string>
+    <string name="settings_video_download_quality_best">Beste</string>
 
     <string name="settings_category_video">Video</string>
 

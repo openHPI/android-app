@@ -3,5 +3,10 @@ package de.xikolo.download.filedownload
 import de.xikolo.download.DownloadIdentifier
 
 data class FileDownloadIdentifier(
-    val id: Int
-) : DownloadIdentifier
+    private val id: Int
+) : DownloadIdentifier {
+
+    fun get(): Int {
+        return id
+    }
+}

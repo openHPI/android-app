@@ -114,7 +114,7 @@ fun <T : Video> T.cast(activity: Activity, autoPlay: Boolean): PendingResult<Rem
 
         val castMetadata = MediaInfo.Builder(streamToPlay?.hdUrl)
             .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
-            .setContentType("videos/mp4")
+            .setContentType("application/x-mpegURL")
             .setMetadata(mediaMetadata)
             .setMediaTracks(subtitleTracks)
             .setTextTrackStyle(TextTrackStyle.fromSystemSettings(activity))

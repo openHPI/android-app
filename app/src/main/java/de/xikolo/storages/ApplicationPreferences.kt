@@ -14,8 +14,11 @@ class ApplicationPreferences {
 
     private val context: Context = App.instance
 
-    var storage: String?
-        get() = getString(context.getString(R.string.preference_storage), context.getString(R.string.settings_default_value_storage))
+    var storage: String
+        get() = getString(
+            context.getString(R.string.preference_storage),
+            context.getString(R.string.settings_default_value_storage)
+        )
         set(value) = putString(context.getString(R.string.preference_storage), value)
 
     var isVideoQualityLimitedOnMobile: Boolean
@@ -26,12 +29,30 @@ class ApplicationPreferences {
         get() = getBoolean(context.getString(R.string.preference_download_network))
         set(value) = putBoolean(context.getString(R.string.preference_download_network), value)
 
+    var videoDownloadQuality: VideoSettingsHelper.VideoQuality
+        get() = VideoSettingsHelper.VideoQuality.get(
+            context,
+            getString(
+                context.getString(R.string.preference_video_download_quality),
+                context.getString(R.string.settings_default_value_video_download_quality)
+            )
+        )
+        set(value) = putString(
+            context.getString(R.string.preference_video_download_quality),
+            value.toString(context)
+        )
+
     var videoPlaybackSpeed: VideoSettingsHelper.PlaybackSpeed
-        get() = VideoSettingsHelper.PlaybackSpeed.get(getString(
+        get() = VideoSettingsHelper.PlaybackSpeed.get(
+            getString(
+                context.getString(R.string.preference_video_playback_speed),
+                context.getString(R.string.settings_default_value_video_playback_speed)
+            )
+        )
+        set(speed) = putString(
             context.getString(R.string.preference_video_playback_speed),
-            context.getString(R.string.settings_default_value_video_playback_speed)
-        ))
-        set(speed) = putString(context.getString(R.string.preference_video_playback_speed), speed.toString())
+            speed.toString()
+        )
 
     var videoSubtitlesLanguage: String?
         get() {
@@ -70,14 +91,27 @@ class ApplicationPreferences {
         set(value) = putBoolean(context.getString(R.string.preference_confirm_open_external_content_peer), value)
 
     var firstAndroid4DeprecationWarningShown: Boolean
-        get() = getBoolean(context.getString(R.string.preference_first_android_4_deprecation_dialog), false)
-        set(value) = putBoolean(context.getString(R.string.preference_first_android_4_deprecation_dialog), value)
+        get() = getBoolean(
+            context.getString(R.string.preference_first_android_4_deprecation_dialog),
+            false
+        )
+        set(value) = putBoolean(
+            context.getString(R.string.preference_first_android_4_deprecation_dialog),
+            value
+        )
 
     var secondAndroid4DeprecationWarningShown: Boolean
-        get() = getBoolean(context.getString(R.string.preference_second_android_4_deprecation_dialog), false)
-        set(value) = putBoolean(context.getString(R.string.preference_second_android_4_deprecation_dialog), value)
+        get() = getBoolean(
+            context.getString(R.string.preference_second_android_4_deprecation_dialog),
+            false
+        )
+        set(value) = putBoolean(
+            context.getString(R.string.preference_second_android_4_deprecation_dialog),
+            value
+        )
 
-    private fun getBoolean(key: String, defValue: Boolean = true) = preferences.getBoolean(key, defValue)
+    private fun getBoolean(key: String, defValue: Boolean = true) =
+        preferences.getBoolean(key, defValue)
 
     private fun putBoolean(key: String, value: Boolean) {
         val editor = preferences.edit()
@@ -85,7 +119,8 @@ class ApplicationPreferences {
         editor.apply()
     }
 
-    private fun getString(key: String, defValue: String? = null): String? = preferences.getString(key, defValue)
+    private fun getString(key: String, defValue: String): String =
+        preferences.getString(key, defValue) ?: defValue
 
     private fun putString(key: String, value: String?) {
         val editor = preferences.edit()

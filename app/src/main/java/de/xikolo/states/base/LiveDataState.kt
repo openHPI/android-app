@@ -5,7 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
-abstract class LiveDataState<T>(initialState: T? = null) : LiveData<T>() {
+open class LiveDataState<T>(initialState: T? = null) : LiveData<T>() {
 
     init {
         initialState?.let {

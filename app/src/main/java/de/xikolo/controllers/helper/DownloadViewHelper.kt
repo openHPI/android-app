@@ -6,7 +6,6 @@ import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.annotation.StringRes
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentActivity
 import butterknife.BindView
@@ -15,31 +14,32 @@ import de.xikolo.R
 import de.xikolo.controllers.dialogs.ConfirmDeleteDialog
 import de.xikolo.controllers.dialogs.ConfirmDeleteDialogAutoBundle
 import de.xikolo.controllers.dialogs.MobileDownloadDialog
-import de.xikolo.download.DownloadIdentifier
 import de.xikolo.download.DownloadItem
+import de.xikolo.download.DownloadStatus
 import de.xikolo.storages.ApplicationPreferences
 import de.xikolo.utils.extensions.ConnectivityType
 import de.xikolo.utils.extensions.asFormattedFileSize
 import de.xikolo.utils.extensions.connectivityType
-import de.xikolo.utils.extensions.fileSize
 import de.xikolo.utils.extensions.isOnline
 import de.xikolo.utils.extensions.showToast
-import java.io.File
 
 /**
  * When the url of the DownloadAsset's URL is null, the urlNotAvailableMessage is shown and the UI will be disabled.
  */
 class DownloadViewHelper(
     private val activity: FragmentActivity,
-    private val download: DownloadItem<*, DownloadIdentifier>,
+    private val download: DownloadItem<*, *>,
     title: CharSequence? = null,
     description: CharSequence? = null,
-    urlNotAvailableMessage: CharSequence? = null
+    urlNotAvailableMessage: CharSequence? = null,
+    openText: CharSequence? = null,
+    openClick: (() -> Unit)? = null,
+    private val onDeleted: (() -> Unit)? = null
 ) {
 
     companion object {
         val TAG: String = DownloadViewHelper::class.java.simpleName
-        private const val MILLISECONDS = 250L
+        private const val MILLISECONDS = 1000L
     }
 
     val view: View
@@ -106,8 +106,8 @@ class DownloadViewHelper(
             }
         }
 
-        buttonDownloadCancel.setOnClickListener { _ ->
-            download.cancel(activity)
+        buttonDownloadCancel.setOnClickListener {
+            download.delete(activity)
             showStartState()
         }
 
@@ -116,17 +116,17 @@ class DownloadViewHelper(
                 val dialog = ConfirmDeleteDialogAutoBundle.builder(false).build()
                 dialog.listener = object : ConfirmDeleteDialog.Listener {
                     override fun onDialogPositiveClick(dialog: DialogFragment) {
-                        deleteFile()
+                        deleteDownload()
                     }
 
                     override fun onDialogPositiveAndAlwaysClick(dialog: DialogFragment) {
                         appPreferences.confirmBeforeDeleting = false
-                        deleteFile()
+                        deleteDownload()
                     }
                 }
                 dialog.show(activity.supportFragmentManager, ConfirmDeleteDialog.TAG)
             } else {
-                deleteFile()
+                deleteDownload()
             }
         }
 
@@ -143,7 +143,8 @@ class DownloadViewHelper(
             textDescription.visibility = View.GONE
         }
 
-        if (!download.isDownloadable) {
+        if (!download.downloadable) {
+            showStartState()
             view.isEnabled = false
             buttonDownloadStart.isEnabled = false
 
@@ -154,67 +155,50 @@ class DownloadViewHelper(
             }
         }
 
-        // ToDo will be refactored in the HLS feature to hide the open button if openAction is null
-        buttonOpenDownload.setOnClickListener {
-            download.openAction?.invoke(activity) ?: run {
-                activity.showToast(R.string.error_plain)
-            }
+        if (openText != null) {
+            buttonOpenDownload.text = openText
         }
 
-        progressBarUpdater = object : Runnable {
-            override fun run() {
-                Handler(Looper.getMainLooper()).post {
-                    download.getProgress { progress ->
+        when {
+            openClick != null -> buttonOpenDownload.setOnClickListener { openClick() }
+            download.openAction != null -> buttonOpenDownload.setOnClickListener {
+                download.openAction?.invoke(activity)
+            }
+            else -> buttonOpenDownload.visibility = View.GONE
+        }
+
+        progressBarUpdater =
+            object : Runnable {
+                override fun run() {
+                    Handler(Looper.getMainLooper()).post {
+                        onStatusChanged(download.status.value)
+
                         if (progressBarUpdaterRunning) {
-                            val downloadedBytes = progress.first ?: 0L
-                            val totalBytes = progress.second ?: 0L
-
-                            progressBarDownload.isIndeterminate = false
-                            if (totalBytes == 0L) {
-                                progressBarDownload.progress = 0
-                            } else {
-                                progressBarDownload.progress =
-                                    (downloadedBytes * 100 / totalBytes).toInt()
-                            }
-                            textFileSize.text = activity.getString(
-                                R.string.download_slash,
-                                downloadedBytes.asFormattedFileSize,
-                                totalBytes.asFormattedFileSize
-                            )
+                            progressBarDownload.postDelayed(this, MILLISECONDS)
                         }
-                    }
-
-                    if (progressBarUpdaterRunning) {
-                        progressBarDownload.postDelayed(this, MILLISECONDS)
                     }
                 }
             }
-        }
 
-        view.visibility = View.INVISIBLE
-        download.isDownloadRunning {
-            when {
-                it -> showRunningState()
-                download.downloadExists -> showEndState()
-                else -> showStartState()
+        if (download.downloadable) {
+            download.status.observe(activity) {
+                onStatusChanged(it)
             }
-            view.visibility = View.VISIBLE
         }
-
-        registerDownloadStateListener()
     }
 
-    private fun deleteFile() {
+    private fun deleteDownload() {
         download.delete(activity) {
             if (it) {
                 showStartState()
+                onDeleted?.invoke()
             }
         }
     }
 
     private fun startDownload() {
         download.start(activity) {
-            if (it != null) {
+            if (it) {
                 showRunningState()
             }
         }
@@ -226,15 +210,23 @@ class DownloadViewHelper(
         viewDownloadEnd.visibility = View.INVISIBLE
 
         progressBarDownload.progress = 0
-        progressBarDownload.isIndeterminate = true
         progressBarUpdaterRunning = false
 
-        if (download.downloadSize != 0L) {
+        if (download.size != 0L) {
             textFileSize.visibility = View.VISIBLE
-            textFileSize.text = download.downloadSize.asFormattedFileSize
+            textFileSize.text = download.size.asFormattedFileSize
         } else {
             textFileSize.visibility = View.GONE
         }
+    }
+
+    private fun showPendingState() {
+        viewDownloadStart.visibility = View.INVISIBLE
+        viewDownloadRunning.visibility = View.VISIBLE
+        viewDownloadEnd.visibility = View.INVISIBLE
+
+        buttonDownloadCancel.visibility = View.INVISIBLE
+        progressBarDownload.isIndeterminate = true
     }
 
     private fun showRunningState() {
@@ -242,10 +234,14 @@ class DownloadViewHelper(
         viewDownloadRunning.visibility = View.VISIBLE
         viewDownloadEnd.visibility = View.INVISIBLE
 
+        buttonDownloadCancel.visibility = View.VISIBLE
+        progressBarDownload.isIndeterminate = false
         textFileSize.visibility = View.VISIBLE
 
-        progressBarUpdaterRunning = true
-        Thread(progressBarUpdater).start()
+        if (!progressBarUpdaterRunning) {
+            progressBarUpdaterRunning = true
+            Thread(progressBarUpdater).start()
+        }
     }
 
     private fun showEndState() {
@@ -255,39 +251,40 @@ class DownloadViewHelper(
 
         textFileSize.visibility = View.VISIBLE
 
-        textFileSize.text = if (download.downloadSize != 0L) {
-            download.downloadSize.asFormattedFileSize
+        if (download.size != 0L) {
+            textFileSize.visibility = View.VISIBLE
+            textFileSize.text = download.size.asFormattedFileSize
         } else {
-            (download.download as? File?).fileSize.asFormattedFileSize
+            textFileSize.visibility = View.GONE
         }
 
         progressBarUpdaterRunning = false
     }
 
-    private fun registerDownloadStateListener() {
-        download.stateListener = object : DownloadItem.StateListener {
-            override fun onStarted() {
-                if (!progressBarUpdaterRunning) {
-                    showRunningState()
-                }
-            }
+    private fun onStatusChanged(status: DownloadStatus) {
+        when (status.state) {
+            DownloadStatus.State.PENDING -> showPendingState()
+            DownloadStatus.State.RUNNING -> {
+                showRunningState()
 
-            override fun onCompleted() {
-                if (download.downloadExists) {
-                    showEndState()
-                }
-            }
+                val downloadedBytes = status.downloadedBytes ?: 0L
+                val totalBytes = status.totalBytes ?: 0L
 
-            override fun onDeleted() {
-                if (progressBarUpdaterRunning) {
-                    showStartState()
+                if (totalBytes == 0L) {
+                    progressBarDownload.progress = 0
+                    textFileSize.text = ""
+                } else {
+                    progressBarDownload.progress =
+                        (downloadedBytes * 100 / totalBytes).toInt()
+                    textFileSize.text = activity.getString(
+                        R.string.download_slash,
+                        downloadedBytes.asFormattedFileSize,
+                        totalBytes.asFormattedFileSize
+                    )
                 }
             }
+            DownloadStatus.State.DOWNLOADED -> showEndState()
+            DownloadStatus.State.DELETED -> showStartState()
         }
-    }
-
-    fun onOpenFileClick(@StringRes buttonText: Int, onClick: () -> Unit) {
-        buttonOpenDownload.text = activity.getString(buttonText)
-        buttonOpenDownload.setOnClickListener { onClick.invoke() }
     }
 }

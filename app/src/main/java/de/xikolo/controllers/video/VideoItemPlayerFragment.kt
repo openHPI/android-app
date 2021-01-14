@@ -3,6 +3,8 @@ package de.xikolo.controllers.video
 import android.content.res.Configuration
 import android.os.Bundle
 import de.xikolo.controllers.helper.VideoSettingsHelper
+import de.xikolo.download.DownloadItem
+import de.xikolo.download.DownloadStatus
 import de.xikolo.models.DownloadAsset
 import de.xikolo.models.Item
 import de.xikolo.models.Video
@@ -71,11 +73,33 @@ class VideoItemPlayerFragment : VideoStreamPlayerFragment() {
     private val item: Item
         get() = ItemDao.Unmanaged.find(itemId)!!
 
-    private val videoDownloadAssetHD: DownloadAsset.Course.Item.VideoHD
-        get() = DownloadAsset.Course.Item.VideoHD(item, video)
+    private val videoDownloadBest: DownloadAsset.Course.Item.VideoHLS
+        get() = DownloadAsset.Course.Item.VideoHLS(
+            item,
+            video,
+            VideoSettingsHelper.VideoQuality.BEST
+        )
 
-    private val videoDownloadAssetSD: DownloadAsset.Course.Item.VideoSD
-        get() = DownloadAsset.Course.Item.VideoSD(item, video)
+    private val videoDownloadHigh: DownloadAsset.Course.Item.VideoHLS
+        get() = DownloadAsset.Course.Item.VideoHLS(
+            item,
+            video,
+            VideoSettingsHelper.VideoQuality.HIGH
+        )
+
+    private val videoDownloadMedium: DownloadAsset.Course.Item.VideoHLS
+        get() = DownloadAsset.Course.Item.VideoHLS(
+            item,
+            video,
+            VideoSettingsHelper.VideoQuality.MEDIUM
+        )
+
+    private val videoDownloadLow: DownloadAsset.Course.Item.VideoHLS
+        get() = DownloadAsset.Course.Item.VideoHLS(
+            item,
+            video,
+            VideoSettingsHelper.VideoQuality.LOW
+        )
 
     private val videoDao = VideoDao(Realm.getDefaultInstance())
 
@@ -89,73 +113,87 @@ class VideoItemPlayerFragment : VideoStreamPlayerFragment() {
 
     override fun play(fromUser: Boolean) {
         if (fromUser) {
-            LanalyticsUtil.trackVideoPlay(itemId,
+            LanalyticsUtil.trackVideoPlay(
+                itemId,
                 courseId, sectionId,
                 currentPosition,
                 currentPlaybackSpeed.value,
-                activity!!.resources.configuration.orientation,
+                requireActivity().resources.configuration.orientation,
                 currentQualityString,
-                sourceString)
+                sourceString
+            )
         }
         super.play(fromUser)
     }
 
     override fun pause(fromUser: Boolean) {
         if (fromUser) {
-            LanalyticsUtil.trackVideoPause(itemId,
+            LanalyticsUtil.trackVideoPause(
+                itemId,
                 courseId, sectionId,
                 currentPosition,
                 currentPlaybackSpeed.value,
-                activity!!.resources.configuration.orientation,
+                requireActivity().resources.configuration.orientation,
                 currentQualityString,
-                sourceString)
+                sourceString
+            )
         }
         super.pause(fromUser)
     }
 
     override fun seekTo(progress: Int, fromUser: Boolean) {
         if (fromUser) {
-            LanalyticsUtil.trackVideoSeek(itemId,
+            LanalyticsUtil.trackVideoSeek(
+                itemId,
                 courseId, sectionId,
                 currentPosition,
                 progress,
                 currentPlaybackSpeed.value,
-                activity!!.resources.configuration.orientation,
+                requireActivity().resources.configuration.orientation,
                 currentQualityString,
-                sourceString)
+                sourceString
+            )
         }
         super.seekTo(progress, fromUser)
     }
 
-    override fun changeQuality(oldVideoMode: VideoSettingsHelper.VideoMode, newVideoMode: VideoSettingsHelper.VideoMode, fromUser: Boolean) {
+    override fun changePlaybackMode(
+        oldMode: VideoSettingsHelper.PlaybackMode,
+        newMode: VideoSettingsHelper.PlaybackMode,
+        fromUser: Boolean
+    ) {
         if (fromUser) {
             val oldSourceString = sourceString
-            super.changeQuality(oldVideoMode, newVideoMode, true)
-            LanalyticsUtil.trackVideoChangeQuality(itemId,
+            super.changePlaybackMode(oldMode, newMode, true)
+            LanalyticsUtil.trackVideoChangeQuality(
+                itemId,
                 courseId, sectionId,
                 currentPosition,
                 currentPlaybackSpeed.value,
-                activity!!.resources.configuration.orientation,
-                getQualityString(oldVideoMode),
-                getQualityString(newVideoMode),
+                requireActivity().resources.configuration.orientation,
+                getQualityString(oldMode),
+                getQualityString(newMode),
                 oldSourceString,
-                sourceString)
+                sourceString
+            )
         } else {
-            super.changeQuality(oldVideoMode, newVideoMode, false)
+            super.changePlaybackMode(oldMode, newMode, false)
         }
     }
 
     override fun changePlaybackSpeed(oldSpeed: VideoSettingsHelper.PlaybackSpeed, newSpeed: VideoSettingsHelper.PlaybackSpeed, fromUser: Boolean) {
         super.changePlaybackSpeed(oldSpeed, newSpeed, fromUser)
         if (fromUser) {
-            LanalyticsUtil.trackVideoChangeSpeed(itemId,
+            LanalyticsUtil.trackVideoChangeSpeed(
+                itemId,
                 courseId, sectionId,
                 currentPosition,
                 oldSpeed.value,
                 newSpeed.value,
-                activity!!.resources.configuration.orientation,
+                requireActivity().resources.configuration.orientation,
                 currentQualityString,
-                sourceString)
+                sourceString
+            )
         }
     }
 
@@ -164,70 +202,74 @@ class VideoItemPlayerFragment : VideoStreamPlayerFragment() {
         videoDao.updateProgress(video, currentPosition)
     }
 
-    override fun getSubtitleList(): List<VideoSubtitles>? {
-        return video.subtitles
+    override fun getSubtitleList(): List<VideoSubtitles> {
+        return video.subtitles ?: emptyList()
     }
 
-    override fun getSubtitleUri(currentSubtitles: VideoSubtitles): String {
-        val downloadAsset = DownloadAsset.Course.Item.Subtitles(currentSubtitles, item)
-        return if (downloadAsset.downloadExists) {
-            "file://" + downloadAsset.download!!.absolutePath
-        } else {
-            super.getSubtitleUri(currentSubtitles)
+    override fun setVideo(mode: VideoSettingsHelper.PlaybackMode): Boolean {
+        val item = when (mode) {
+            VideoSettingsHelper.PlaybackMode.BEST -> videoDownloadBest
+            VideoSettingsHelper.PlaybackMode.HIGH -> videoDownloadHigh
+            VideoSettingsHelper.PlaybackMode.MEDIUM -> videoDownloadMedium
+            VideoSettingsHelper.PlaybackMode.LOW -> videoDownloadLow
+            else -> null
         }
+
+        if (item != null && videoDownloadPresent(item)) {
+            playerView.setVideoSource(item.download!!)
+            item.subs?.let {
+                playerView.setSubtitleSources(it)
+            }
+            isOfflineVideo = true
+            return true
+        }
+
+        return super.setVideo(mode)
     }
 
-    override fun setVideoUri(currentQuality: VideoSettingsHelper.VideoMode): Boolean {
-        val videoAssetDownload: DownloadAsset.Course.Item? = when (currentQuality) {
-            VideoSettingsHelper.VideoMode.HD -> videoDownloadAssetHD
-            VideoSettingsHelper.VideoMode.SD -> videoDownloadAssetSD
-            else                             -> null
-        }
-
-        return if (videoAssetDownload != null && videoDownloadPresent(videoAssetDownload)) {
-            setLocalVideoUri("file://" + videoAssetDownload.download!!)
-            true
-        } else {
-            super.setVideoUri(currentQuality)
-        }
-    }
-
-    override fun getVideoMode(): VideoSettingsHelper.VideoMode {
+    override fun getPlaybackMode(): VideoSettingsHelper.PlaybackMode {
         return when {
-            videoDownloadPresent(videoDownloadAssetHD) -> // hd video download available
-                VideoSettingsHelper.VideoMode.HD
-            videoDownloadPresent(videoDownloadAssetSD) -> // sd video download available
-                VideoSettingsHelper.VideoMode.SD
-            else                                       -> super.getVideoMode()
+            videoDownloadPresent(videoDownloadBest) ->
+                VideoSettingsHelper.PlaybackMode.BEST
+            videoDownloadPresent(videoDownloadHigh) ->
+                VideoSettingsHelper.PlaybackMode.HIGH
+            videoDownloadPresent(videoDownloadMedium) ->
+                VideoSettingsHelper.PlaybackMode.MEDIUM
+            videoDownloadPresent(videoDownloadLow) ->
+                VideoSettingsHelper.PlaybackMode.LOW
+            else -> super.getPlaybackMode()
         }
     }
 
-    override fun getOfflineAvailability(videoMode: VideoSettingsHelper.VideoMode): Boolean {
-        return when (videoMode) {
-            VideoSettingsHelper.VideoMode.HD -> videoDownloadPresent(videoDownloadAssetHD)
-            VideoSettingsHelper.VideoMode.SD -> videoDownloadPresent(videoDownloadAssetSD)
-            else                             -> false
+    override fun getOfflineAvailability(mode: VideoSettingsHelper.PlaybackMode): Boolean {
+        return when (mode) {
+            VideoSettingsHelper.PlaybackMode.BEST -> videoDownloadPresent(videoDownloadBest)
+            VideoSettingsHelper.PlaybackMode.HIGH -> videoDownloadPresent(videoDownloadHigh)
+            VideoSettingsHelper.PlaybackMode.MEDIUM -> videoDownloadPresent(videoDownloadMedium)
+            VideoSettingsHelper.PlaybackMode.LOW -> videoDownloadPresent(videoDownloadLow)
+            else -> false
         }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
 
-        LanalyticsUtil.trackVideoChangeOrientation(itemId,
+        LanalyticsUtil.trackVideoChangeOrientation(
+            itemId,
             courseId, sectionId,
             currentPosition,
             currentPlaybackSpeed.value,
             newConfig.orientation,
             currentQualityString,
-            sourceString)
+            sourceString
+        )
     }
 
-    private fun videoDownloadPresent(item: DownloadAsset.Course.Item): Boolean {
-        return item.downloadExists
+    private fun videoDownloadPresent(item: DownloadItem<*, *>): Boolean {
+        return item.status.state == DownloadStatus.State.DOWNLOADED
     }
 
-    private fun getQualityString(videoMode: VideoSettingsHelper.VideoMode): String {
-        return videoMode.name.toLowerCase(Locale.ENGLISH)
+    private fun getQualityString(mode: VideoSettingsHelper.PlaybackMode): String {
+        return mode.name.toLowerCase(Locale.ENGLISH)
     }
-
 }

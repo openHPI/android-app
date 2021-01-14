@@ -134,12 +134,9 @@ object LanalyticsUtil {
     @JvmStatic
     fun trackDownloadedFile(itemDownloadAsset: DownloadAsset.Course.Item) {
         val verb: String = when (itemDownloadAsset) {
-            is DownloadAsset.Course.Item.VideoHD       -> "DOWNLOADED_HD_VIDEO"
-            is DownloadAsset.Course.Item.VideoSD       -> "DOWNLOADED_SD_VIDEO"
             is DownloadAsset.Course.Item.Slides        -> "DOWNLOADED_SLIDES"
             is DownloadAsset.Course.Item.Transcript    -> "DOWNLOADED_TRANSCRIPT"
             is DownloadAsset.Course.Item.Audio         -> "DOWNLOADED_AUDIO"
-            is DownloadAsset.Course.Item.Subtitles     -> "DOWNLOADED_SUBTITLES"
         }
 
         createEventBuilder()

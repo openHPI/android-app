@@ -2,41 +2,23 @@ package de.xikolo.download
 
 import androidx.fragment.app.FragmentActivity
 
-abstract class DownloadItem<out F, out I : DownloadIdentifier> {
+interface DownloadItem<out D, I : DownloadIdentifier> {
 
-    abstract val isDownloadable: Boolean
+    val identifier: I
 
-    abstract val downloadSize: Long
+    val download: D?
 
-    abstract val title: String
+    val downloadable: Boolean
 
-    abstract val download: F?
+    val title: String
 
-    abstract val openAction: ((FragmentActivity) -> Unit)?
+    val openAction: ((FragmentActivity) -> Unit)?
 
-    abstract var stateListener: StateListener?
+    val size: Long
 
-    abstract fun start(activity: FragmentActivity, callback: ((I?) -> Unit)? = null)
+    val status: DownloadStatus.DownloadStatusLiveData
 
-    abstract fun cancel(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)
+    fun start(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)
 
-    abstract fun delete(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)
-
-    abstract fun getProgress(callback: (Pair<Long?, Long?>) -> Unit)
-
-    abstract fun isDownloadRunning(callback: (Boolean) -> Unit)
-
-    val downloadExists: Boolean
-        get() {
-            return download != null
-        }
-
-    interface StateListener {
-
-        fun onStarted()
-
-        fun onCompleted()
-
-        fun onDeleted()
-    }
+    fun delete(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)
 }

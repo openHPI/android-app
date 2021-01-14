@@ -2,7 +2,11 @@ package de.xikolo.models
 
 import de.xikolo.App
 import de.xikolo.R
+import de.xikolo.controllers.downloads.DownloadsFragment.Companion.CATEGORY_CERTIFICATES
+import de.xikolo.controllers.downloads.DownloadsFragment.Companion.CATEGORY_DOCUMENTS
+import de.xikolo.controllers.helper.VideoSettingsHelper
 import de.xikolo.download.filedownload.FileDownloadItem
+import de.xikolo.download.hlsvideodownload.HlsVideoDownloadItem
 import de.xikolo.utils.extensions.asEscapedFileName
 import java.io.File
 
@@ -13,6 +17,7 @@ object DownloadAsset {
         documentLocalization: DocumentLocalization
     ) : FileDownloadItem(
         documentLocalization.fileUrl,
+        CATEGORY_DOCUMENTS,
         documentLocalization.language + "_" +
             documentLocalization.revision + "_" +
             documentLocalization.id + ".pdf"
@@ -29,7 +34,7 @@ object DownloadAsset {
     }
 
     sealed class Certificate(url: String?, fileName: String, val course: de.xikolo.models.Course) :
-        FileDownloadItem(url, fileName) {
+        FileDownloadItem(url, CATEGORY_CERTIFICATES, fileName) {
         override fun getFileFolder(): String {
             return super.getFileFolder() + File.separator +
                 "Certificates" + File.separator +
@@ -63,7 +68,7 @@ object DownloadAsset {
         url: String?,
         override val fileName: String,
         val course: de.xikolo.models.Course
-    ) : FileDownloadItem(url, fileName) {
+    ) : FileDownloadItem(url, course.id, fileName) {
         override fun getFileFolder(): String {
             return super.getFileFolder() + File.separator +
                 "Courses" + File.separator +
@@ -93,40 +98,21 @@ object DownloadAsset {
                 override val size = video.transcriptSize.toLong()
             }
 
-            class VideoSD(item: de.xikolo.models.Item, val video: Video) :
-                Item(video.streamToPlay?.sdUrl, "video_sd_${item.id}.mp4", item) {
-                override val title = "Video (SD): " + item.title
-                override val mimeType = "video/mp4"
-                override val size = video.streamToPlay?.sdSize?.toLong() ?: 0L
+            class VideoHLS(
+                item: de.xikolo.models.Item,
+                video: Video,
+                quality: VideoSettingsHelper.VideoQuality
+            ) :
+                HlsVideoDownloadItem(
+                    video.streamToPlay?.hlsUrl,
+                    item.courseId,
+                    quality.bitrate,
+                    video.subtitles.associate {
+                        it.language to it.vttUrl
+                    }
+                ) {
 
-                override val secondaryDownloadItems: Set<FileDownloadItem>
-                    get() {
-                        return video.subtitles.map {
-                            Subtitles(it, item)
-                        }.toSet()
-                    }
-                override val deleteSecondaryDownloadItemPredicate: (FileDownloadItem) -> Boolean =
-                    { _ ->
-                        !VideoSD(item, video).downloadExists && !VideoHD(item, video).downloadExists
-                    }
-            }
-
-            class VideoHD(item: de.xikolo.models.Item, val video: Video) :
-                Item(video.streamToPlay?.hdUrl, "video_hd_${item.id}.mp4", item) {
-                override val title = "Video (HD): " + item.title
-                override val mimeType = "video/mp4"
-                override val size = video.streamToPlay?.hdSize?.toLong() ?: 0L
-
-                override val secondaryDownloadItems: Set<FileDownloadItem>
-                    get() {
-                        return video.subtitles.map {
-                            Subtitles(it, item)
-                        }.toSet()
-                    }
-                override val deleteSecondaryDownloadItemPredicate: (FileDownloadItem) -> Boolean =
-                    { _ ->
-                        !VideoSD(item, video).downloadExists && !VideoHD(item, video).downloadExists
-                    }
+                override val title = App.instance.getString(R.string.video) + ": " + item.title
             }
 
             class Audio(item: de.xikolo.models.Item, video: Video) :
@@ -134,19 +120,6 @@ object DownloadAsset {
                 override val title = "Audio: " + item.title
                 override val mimeType = "audio/mpeg"
                 override val size = video.audioSize.toLong()
-            }
-
-            class Subtitles(videoSubtitles: VideoSubtitles, item: de.xikolo.models.Item) : Item(
-                videoSubtitles.vttUrl,
-                "subtitles_${videoSubtitles.language}_${item.id}.vtt",
-                item
-            ) {
-                override fun getFileFolder(): String {
-                    return super.getFileFolder() + File.separator + "Subtitles"
-                }
-
-                override val showNotification = false
-                override val mimeType = "text/vtt"
             }
         }
     }

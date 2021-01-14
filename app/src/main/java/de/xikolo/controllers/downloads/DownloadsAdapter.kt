@@ -11,11 +11,8 @@ import de.xikolo.App
 import de.xikolo.R
 import de.xikolo.utils.MetaSectionList
 import de.xikolo.utils.extensions.asFormattedFileSize
-import de.xikolo.utils.extensions.fileCount
-import de.xikolo.utils.extensions.folderSize
-import java.io.File
 
-class DownloadsAdapter(private val callback: OnDeleteButtonClickedListener) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+class DownloadsAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
         val TAG: String = DownloadsAdapter::class.java.simpleName
@@ -23,12 +20,12 @@ class DownloadsAdapter(private val callback: OnDeleteButtonClickedListener) : Re
         private const val ITEM_VIEW_TYPE_ITEM = 1
     }
 
-    private val sectionList: MetaSectionList<String, Any, List<FolderItem>> =
+    private val sectionList: MetaSectionList<String, Any, List<DownloadCategory>> =
         MetaSectionList()
 
-    fun addItem(header: String, folder: List<FolderItem>) {
-        if (folder.isNotEmpty()) {
-            sectionList.add(header, folder)
+    fun addItem(header: String, downloadCategory: List<DownloadCategory>) {
+        if (downloadCategory.isNotEmpty()) {
+            sectionList.add(header, downloadCategory)
             notifyDataSetChanged()
         }
     }
@@ -68,30 +65,34 @@ class DownloadsAdapter(private val callback: OnDeleteButtonClickedListener) : Re
         if (holder is HeaderViewHolder) {
             holder.title.text = sectionList.get(position) as String
         } else {
+            val downloadCategory = sectionList.get(position) as DownloadCategory
+
             val viewHolder = holder as FolderViewHolder
-
-            val folderItem = sectionList.get(position) as FolderItem
-
-            val context = App.instance
-
-            val dir = File(folderItem.path)
-            viewHolder.textTitle.text = folderItem.title.replace("_".toRegex(), " ")
-
-            val numberOfFiles = dir.fileCount.toLong()
-
+            viewHolder.textTitle.text = downloadCategory.title.replace("_".toRegex(), " ")
             viewHolder.textButtonDelete.setOnClickListener {
-                callback.onDeleteButtonClicked(
-                    folderItem
-                )
+                downloadCategory.onDelete()
             }
 
-            if (numberOfFiles > 0) {
-                viewHolder.textSubTitle.text = numberOfFiles.toString() + " " + context.getString(R.string.files) + ": " + dir.folderSize.asFormattedFileSize
-                viewHolder.textButtonDelete.visibility = View.VISIBLE
-            } else {
-                viewHolder.textSubTitle.text = numberOfFiles.toString() + " " + context.getString(R.string.files)
-                viewHolder.textButtonDelete.visibility = View.GONE
-            }
+            viewHolder.textSubTitle.text =
+                when {
+                    downloadCategory.itemCount < 0 -> {
+                        viewHolder.textButtonDelete.visibility = View.VISIBLE
+                        downloadCategory.size.asFormattedFileSize
+                    }
+                    downloadCategory.itemCount == 0 -> {
+                        viewHolder.textButtonDelete.visibility = View.GONE
+                        downloadCategory.itemCount.toString() + " " +
+                            App.instance.getString(R.string.files)
+                    }
+                    else -> {
+                        viewHolder.textButtonDelete.visibility = View.VISIBLE
+                        downloadCategory.itemCount.toString() + " " +
+                            App.instance.getString(R.string.files) +
+                            if (downloadCategory.size > 0) {
+                                ": " + downloadCategory.size.asFormattedFileSize
+                            } else ""
+                    }
+                }
 
             if (position == itemCount - 1 || sectionList.isHeader(position + 1)) {
                 viewHolder.viewDivider.visibility = View.INVISIBLE
@@ -101,13 +102,12 @@ class DownloadsAdapter(private val callback: OnDeleteButtonClickedListener) : Re
         }
     }
 
-    class FolderItem(val title: String, val path: String)
-
-    interface OnDeleteButtonClickedListener {
-
-        fun onDeleteButtonClicked(item: FolderItem)
-
-    }
+    data class DownloadCategory(
+        val title: String,
+        val size: Long,
+        val itemCount: Int,
+        val onDelete: () -> Unit
+    )
 
     internal class FolderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 

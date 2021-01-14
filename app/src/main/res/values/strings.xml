@@ -96,12 +96,6 @@
 
     <string name="dialog_app_being_prepared">Please wait while the app is being prepared.</string>
 
-    <string name="dialog_storage_migration">Currently there are files stored in %1$s, do you want to move them to %2$s?</string>
-    <string name="dialog_storage_migration_confirm">Migrate</string>
-    <string name="dialog_storage_migration_title">Storage migration</string>
-    <string name="dialog_storage_migration_message">Migration in progress. Please wait until the process is finished. Do not remove the storage medium.</string>
-    <string name="dialog_storage_migration_successful">Migration completed successfully!</string>
-
     <string name="dialog_api_deprecation_title">Update %1$s</string>
     <string name="dialog_api_deprecation_message">%1$s won\'t run after %2$s anymore unless you update the app.</string>
     <string name="dialog_api_deprecation_yes">Update</string>
@@ -172,8 +166,8 @@
     <string name="scan_qr">Please scan the QR Code</string>
     <string name="slides_as_pdf">Presentation slides as PDF</string>
     <string name="transcript_as_pdf">Transcript as PDF</string>
-    <string name="video_hd_as_mp4">Video (HD) as MP4</string>
-    <string name="video_sd_as_mp4">Video (SD) as MP4</string>
+    <string name="video">Video</string>
+    <string name="video_with_quality">Video (Quality: %1$s)</string>
     <string name="download_slash" translatable="false">%1$s / %2$s</string>
     <string name="download">Download</string>
     <string name="open">Open</string>
@@ -311,13 +305,16 @@
     <string name="settings_title_ask_open_external_content_lti">Confirm before opening external exercises</string>
     <string name="settings_title_ask_open_external_content_peer">Confirm before opening peer assessments</string>
 
-    <string name="settings_category_data_usage">Mobile Data Usage</string>
+    <string name="settings_category_data_usage">Data Usage</string>
 
     <string name="settings_title_video_quality">Limit data usage for videos</string>
     <string name="settings_summary_video_quality">Only stream HD videos on Wi-Fi</string>
 
     <string name="settings_title_download_network">Limit data usage for downloads</string>
     <string name="settings_summary_download_network">Only download files on Wi-Fi</string>
+
+    <string name="settings_title_video_download_quality">Video Download Quality</string>
+    <string name="settings_summary_video_download_quality">Default quality: %s</string>
 
     <string name="settings_category_video">Video</string>
 
@@ -342,6 +339,11 @@
     <string name="settings_title_storage_external">SD Card</string>
     <string name="settings_summary_storage">%1$s: %2$s free.</string>
     <string name="settings_storage_addition">(currently selected)</string>
+
+    <string name="settings_video_download_quality_low">Low</string>
+    <string name="settings_video_download_quality_medium">Medium</string>
+    <string name="settings_video_download_quality_high">High</string>
+    <string name="settings_video_download_quality_best">Best</string>
 
     <!-- -->
     <string name="empty_message_documents_title">No documents available for this course</string>
