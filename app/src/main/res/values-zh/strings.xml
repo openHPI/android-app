@@ -140,6 +140,11 @@
     <string name="dialog_unsupported_intent_message_open_path">尝试用文件管理器打开</string>
     <string name="dialog_unsupported_intent_error_no_file_manager">没有找到文件管理器</string>
 
+    <string name="dialog_download_quality_hint_intent_no">关闭</string>
+    <string name="dialog_download_quality_hint_intent_message">默认的视频下载质量可以在 \"%1$s \"的设置中更改。123的设置中更改。</string>
+    <string name="dialog_download_quality_hint_intent_title">下载质量设置</string>
+    <string name="dialog_download_quality_hint_intent_yes">进入设置</string>
+
     <!-- -->
     <string name="title_activity_module">单元</string>
 

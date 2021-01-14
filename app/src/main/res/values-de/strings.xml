@@ -140,6 +140,11 @@
     <string name="dialog_unsupported_intent_message_open_path">Versuchen im Dateimanager zu öffnen</string>
     <string name="dialog_unsupported_intent_error_no_file_manager">Kein Dateimanager gefunden</string>
 
+    <string name="dialog_download_quality_hint_intent_title">Downloadqualität einstellen</string>
+    <string name="dialog_download_quality_hint_intent_message">Die standardmäßige Downloadqualität für Videos kann in den Einstellungen unter \"%1$s\" geändert werden.</string>
+    <string name="dialog_download_quality_hint_intent_no">Schließen</string>
+    <string name="dialog_download_quality_hint_intent_yes">Einstellungen öffnen</string>
+
     <!-- -->
     <string name="title_activity_module">Module</string>
 

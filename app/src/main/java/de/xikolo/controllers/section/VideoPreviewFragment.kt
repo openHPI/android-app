@@ -1,5 +1,6 @@
 package de.xikolo.controllers.section
 
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Point
 import android.os.Bundle
@@ -17,8 +18,10 @@ import com.yatatsu.autobundle.AutoBundleField
 import de.xikolo.R
 import de.xikolo.config.GlideApp
 import de.xikolo.controllers.base.ViewModelFragment
+import de.xikolo.controllers.dialogs.VideoDownloadQualityHintDialog
 import de.xikolo.controllers.helper.DownloadViewHelper
 import de.xikolo.controllers.helper.VideoSettingsHelper
+import de.xikolo.controllers.settings.SettingsActivity
 import de.xikolo.controllers.video.VideoItemPlayerActivityAutoBundle
 import de.xikolo.download.DownloadStatus
 import de.xikolo.extensions.observe
@@ -196,13 +199,34 @@ class VideoPreviewFragment : ViewModelFragment<VideoPreviewViewModel>() {
                 VideoSettingsHelper.VideoQuality.BEST -> videoBest
             }
 
+            fun showDownloadQualityHint() {
+                val prefs = ApplicationPreferences()
+                if (!prefs.videoDownloadQualityHintShown) {
+                    val dialog = VideoDownloadQualityHintDialog()
+                    dialog.listener = object : VideoDownloadQualityHintDialog.Listener {
+                        override fun onOpenSettingsClicked() {
+                            startActivity(
+                                Intent(context, SettingsActivity::class.java)
+                            )
+                            prefs.videoDownloadQualityHintShown = true
+                        }
+
+                        override fun onDismissed() {
+                            prefs.videoDownloadQualityHintShown = true
+                        }
+                    }
+                    dialog.show(childFragmentManager, VideoDownloadQualityHintDialog.TAG)
+                }
+            }
+
             linearLayoutDownloads.addView(
                 DownloadViewHelper(
                     activity,
                     videoDefault.first,
                     getString(R.string.video_with_quality).format(videoDefault.second),
                     openText = getString(R.string.play),
-                    openClick = { play() }
+                    openClick = { play() },
+                    downloadClick = { showDownloadQualityHint() }
                 ).view
             )
 
@@ -215,6 +239,7 @@ class VideoPreviewFragment : ViewModelFragment<VideoPreviewViewModel>() {
                             getString(R.string.video_with_quality).format(it.second),
                             openText = getString(R.string.play),
                             openClick = { play() },
+                            downloadClick = { showDownloadQualityHint() },
                             onDeleted = { updateDownloadViewHelpers(activity, item, video) }
                         ).view
                     )

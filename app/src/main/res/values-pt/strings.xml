@@ -140,6 +140,11 @@
     <string name="dialog_unsupported_intent_message_open_path">Tente abrir com um gestor de ficheiros</string>
     <string name="dialog_unsupported_intent_error_no_file_manager">Não foi encontrado nenhum gestor de ficheiros</string>
 
+    <string name="dialog_download_quality_hint_intent_no">Fechar</string>
+    <string name="dialog_download_quality_hint_intent_message">A qualidade padrão de descarga de vídeo pode ser alterada nas definições em \"%1$s\".</string>
+    <string name="dialog_download_quality_hint_intent_title">Descarregar definições de qualidade</string>
+    <string name="dialog_download_quality_hint_intent_yes">Ir para as configurações</string>
+
     <!-- -->
     <string name="title_activity_module">Módulo</string>
 

@@ -34,6 +34,7 @@ class DownloadViewHelper(
     urlNotAvailableMessage: CharSequence? = null,
     openText: CharSequence? = null,
     openClick: (() -> Unit)? = null,
+    downloadClick: (() -> Unit)? = null,
     private val onDeleted: (() -> Unit)? = null
 ) {
 
@@ -88,6 +89,7 @@ class DownloadViewHelper(
         val appPreferences = ApplicationPreferences()
 
         buttonDownloadStart.setOnClickListener {
+            downloadClick?.invoke()
             if (activity.isOnline) {
                 if (activity.connectivityType == ConnectivityType.CELLULAR && appPreferences.isDownloadNetworkLimitedOnMobile) {
                     val dialog = MobileDownloadDialog()

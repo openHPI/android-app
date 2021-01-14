@@ -24,6 +24,8 @@
     <string name="preference_category_video_playback_speed" translatable="false">category_video_playback_speed</string>
     <string name="preference_category_info" translatable="false">category_info</string>
 
+    <string name="preference_video_download_quality_hint" translatable="false">video_download_quality_hint</string>
+
     <string name="preference_first_android_4_deprecation_dialog" translatable="false">first_android_4_deprecation_dialog</string>
     <string name="preference_second_android_4_deprecation_dialog" translatable="false">second_android_4_deprecation_dialog</string>
 

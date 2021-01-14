@@ -84,11 +84,27 @@ class ApplicationPreferences {
 
     var confirmOpenExternalContentLti: Boolean
         get() = getBoolean(context.getString(R.string.preference_confirm_open_external_content_lti))
-        set(value) = putBoolean(context.getString(R.string.preference_confirm_open_external_content_lti), value)
+        set(value) = putBoolean(
+            context.getString(R.string.preference_confirm_open_external_content_lti),
+            value
+        )
 
     var confirmOpenExternalContentPeer: Boolean
         get() = getBoolean(context.getString(R.string.preference_confirm_open_external_content_peer))
-        set(value) = putBoolean(context.getString(R.string.preference_confirm_open_external_content_peer), value)
+        set(value) = putBoolean(
+            context.getString(R.string.preference_confirm_open_external_content_peer),
+            value
+        )
+
+    var videoDownloadQualityHintShown: Boolean
+        get() = getBoolean(
+            context.getString(R.string.preference_video_download_quality_hint),
+            false
+        )
+        set(value) = putBoolean(
+            context.getString(R.string.preference_video_download_quality_hint),
+            value
+        )
 
     var firstAndroid4DeprecationWarningShown: Boolean
         get() = getBoolean(

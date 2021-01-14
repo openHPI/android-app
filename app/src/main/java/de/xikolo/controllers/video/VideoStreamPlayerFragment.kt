@@ -634,6 +634,7 @@ open class VideoStreamPlayerFragment : BaseFragment() {
                 true
             }
             else -> {
+                playerView.pause()
                 warningContainer.visibility = View.VISIBLE
                 warningText.text = getString(R.string.video_notification_no_offline_video)
                 false
@@ -660,6 +661,7 @@ open class VideoStreamPlayerFragment : BaseFragment() {
         if (updateVideo()) {
             prepare()
         } else {
+            pause(false)
             showError()
         }
     }
@@ -677,6 +679,7 @@ open class VideoStreamPlayerFragment : BaseFragment() {
 
     private fun showError() {
         saveCurrentPosition()
+        hideProgress()
         warningContainer.visibility = View.VISIBLE
         warningText.text = getString(R.string.error_plain)
     }
