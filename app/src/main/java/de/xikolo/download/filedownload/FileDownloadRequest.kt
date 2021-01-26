@@ -1,12 +1,14 @@
 package de.xikolo.download.filedownload
 
 import androidx.core.net.toUri
+import com.google.gson.Gson
 import com.tonyodev.fetch2.NetworkType
 import com.tonyodev.fetch2.Request
 import com.tonyodev.fetch2core.Extras
 import de.xikolo.App
 import de.xikolo.R
 import de.xikolo.config.Config
+import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadRequest
 import de.xikolo.managers.UserManager
 import de.xikolo.storages.ApplicationPreferences
@@ -18,7 +20,7 @@ data class FileDownloadRequest(
     val localFile: File,
     override val title: String,
     override val showNotification: Boolean,
-    override val category: String?
+    override val category: DownloadCategory
 ) : DownloadRequest {
 
     companion object {
@@ -41,9 +43,7 @@ data class FileDownloadRequest(
                     REQUEST_EXTRA_TITLE to title,
                     REQUEST_EXTRA_SHOW_NOTIFICATION to showNotification.toString()
                 ).apply {
-                    if (category != null) {
-                        put(REQUEST_EXTRA_CATEGORY, category)
-                    }
+                    put(REQUEST_EXTRA_CATEGORY, Gson().toJson(category))
                 }
 
             extras = Extras(extrasMap)

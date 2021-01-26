@@ -2,6 +2,7 @@ package de.xikolo.download.filedownload
 
 import androidx.fragment.app.FragmentActivity
 import de.xikolo.App
+import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadItemImpl
 import de.xikolo.download.DownloadStatus
 import de.xikolo.models.Storage
@@ -14,7 +15,7 @@ import java.io.File
 
 open class FileDownloadItem(
     val url: String?,
-    val category: String?,
+    val category: DownloadCategory,
     open val fileName: String,
     storage: Storage = App.instance.preferredStorage
 ) : DownloadItemImpl<File, FileDownloadIdentifier, FileDownloadRequest>(storage) {

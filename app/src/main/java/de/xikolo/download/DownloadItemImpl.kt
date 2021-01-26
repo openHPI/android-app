@@ -12,6 +12,15 @@ import de.xikolo.utils.LanalyticsUtil
 import de.xikolo.utils.extensions.buildWriteErrorMessage
 import de.xikolo.utils.extensions.showToast
 
+/**
+ * Abstract implementation of [DownloadItem] behavior.
+ *
+ * @param D The type of the download object.
+ * @param I The [DownloadIdentifier] type.
+ * @param R The [DownloadRequest] type.
+ *
+ * @param storage The storage to persist the download on.
+ */
 abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadRequest>(
     var storage: Storage
 ) : DownloadItem<D, I> {
@@ -22,19 +31,37 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
 
     protected val context = App.instance
 
+    /**
+     * The download handler.
+     */
     abstract val downloader: DownloadHandler<I, R>
 
     private var downloaderIdentifier: I? = null
+
+    /**
+     * The identifier of the download.
+     *
+     * Must not be accessed when [downloadable] is false.
+     * Equal to [itemIdentifier] before [start] has been called.
+     * After [start] has been called, this is the identifier returned from the download handler.
+     */
     final override val identifier: I
         get() = downloaderIdentifier ?: itemIdentifier
 
     override val openAction: ((FragmentActivity) -> Unit)? = null
 
+    /**
+     * The download request.
+     */
     abstract val request: R
 
+    /**
+     * The identifier of the download before [start] hjas been called.
+     */
     abstract val itemIdentifier: I
 
     private val statusCache: DownloadStatus.DownloadStatusLiveData by lazy {
+        // this has to be lazy initialized because [download] might not be available at class init
         DownloadStatus.DownloadStatusLiveData(
             null,
             null,
@@ -43,6 +70,8 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
     }
 
     final override val status: DownloadStatus.DownloadStatusLiveData by lazy {
+        // register a listener here which updates the cache and always return the cached status to
+        // realize synchronous function
         downloader.listen(identifier) {
             onStatusChanged(it)
         }
@@ -50,6 +79,7 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
     }
 
     protected open fun onStatusChanged(newStatus: DownloadStatus) {
+        // update the status cache
         statusCache.value = newStatus
     }
 
@@ -99,6 +129,12 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
         }
     }
 
+    /**
+     * Checks and requests permissions.
+     *
+     * @param activity The context activity for permission management.
+     * @param action Executable block which is invoked when permissions are fine.
+     */
     private fun performAction(activity: FragmentActivity, action: () -> Unit): Boolean {
         return if (storage.isWritable) {
             if (

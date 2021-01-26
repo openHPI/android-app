@@ -15,6 +15,7 @@ import com.google.android.exoplayer2.upstream.cache.NoOpCacheEvictor
 import com.google.android.exoplayer2.upstream.cache.SimpleCache
 import de.xikolo.App
 import de.xikolo.config.Config
+import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadHandler
 import de.xikolo.download.DownloadStatus
 import de.xikolo.download.hlsvideodownload.services.HlsVideoDownloadForegroundService
@@ -263,7 +264,7 @@ object HlsVideoDownloadHandler :
 
     override fun getDownloads(
         storage: Storage,
-        callback: (Map<HlsVideoDownloadIdentifier, Pair<DownloadStatus, String?>>) -> Unit
+        callback: (Map<HlsVideoDownloadIdentifier, Pair<DownloadStatus, DownloadCategory>>) -> Unit
     ) {
         val sdcardStorageCache = getSdcardStorageCache(context)
         val cache =
@@ -278,12 +279,14 @@ object HlsVideoDownloadHandler :
 
         callback.invoke(
             getManager(context, cache).downloadIndex.getDownloads().let {
-                val map = mutableMapOf<HlsVideoDownloadIdentifier, Pair<DownloadStatus, String?>>()
+                val map = mutableMapOf<HlsVideoDownloadIdentifier,
+                    Pair<DownloadStatus, DownloadCategory>>()
                 it.moveToFirst()
                 while (!it.isAfterLast) {
-                    map[HlsVideoDownloadIdentifier.from(it.download.request.id)] =
-                        getDownloadStatus(it.download) to HlsVideoDownloadRequest.ArgumentWrapper
-                            .decode(it.download.request.data).category
+                    map[
+                        HlsVideoDownloadIdentifier.from(it.download.request.id)
+                    ] = getDownloadStatus(it.download) to HlsVideoDownloadRequest.ArgumentWrapper
+                        .decode(it.download.request.data).category
                     it.moveToNext()
                 }
                 map

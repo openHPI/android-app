@@ -11,6 +11,7 @@ import com.google.android.exoplayer2.source.hls.playlist.HlsMasterPlaylist
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.util.MimeTypes
 import com.google.gson.Gson
+import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadRequest
 import de.xikolo.models.Storage
 import java.io.IOException
@@ -23,7 +24,7 @@ class HlsVideoDownloadRequest(
     val storage: Storage,
     override val title: String,
     override val showNotification: Boolean,
-    override val category: String?
+    override val category: DownloadCategory
 ) : DownloadRequest {
 
     val mediaItem = MediaItem.Builder()
@@ -90,7 +91,7 @@ class HlsVideoDownloadRequest(
     internal data class ArgumentWrapper(
         val title: String,
         val showNotification: Boolean,
-        val category: String?
+        val category: DownloadCategory
     ) {
         companion object {
             fun decode(data: ByteArray): ArgumentWrapper =

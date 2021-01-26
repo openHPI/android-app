@@ -11,6 +11,7 @@ import com.google.android.exoplayer2.upstream.cache.Cache
 import com.google.android.exoplayer2.upstream.cache.CacheDataSource
 import com.google.android.exoplayer2.util.MimeTypes
 import de.xikolo.App
+import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadItemImpl
 import de.xikolo.models.Storage
 import de.xikolo.utils.extensions.internalStorage
@@ -19,7 +20,7 @@ import de.xikolo.utils.extensions.sdcardStorage
 
 open class HlsVideoDownloadItem(
     val url: String?,
-    val category: String?,
+    val category: DownloadCategory,
     val quality: Int,
     val subtitles: Map<String, String>?,
     storage: Storage = App.instance.preferredStorage

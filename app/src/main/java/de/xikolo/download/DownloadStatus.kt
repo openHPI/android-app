@@ -2,15 +2,50 @@ package de.xikolo.download
 
 import androidx.lifecycle.LiveData
 
+/**
+ * Represents the status of a download.
+ *
+ * @param totalBytes The total size of the download data in bytes.
+ * This value is null when [state] is [DELETED].
+ *
+ * @param downloadedBytes The currently downloaded number of bytes.
+ * Equal to [totalBytes] when [state] is [DOWNLOADED] and null when [state] is [DELETED].
+ *
+ * @param state The current state of the download process.
+ */
 data class DownloadStatus(
     var totalBytes: Long?,
     var downloadedBytes: Long?,
     var state: State
 ) {
+    /**
+     * Represents the state a download is in.
+     */
     enum class State {
-        PENDING, RUNNING, DOWNLOADED, DELETED;
 
-        // Determines what two states result in together.
+        /**
+         * The download has been initiated but did not start to download.
+         */
+        PENDING,
+
+        /**
+         * The download is running.
+         */
+        RUNNING,
+
+        /**
+         * The download has been downloaded successfully and is persisted.
+         */
+        DOWNLOADED,
+
+        /**
+         * The download is not downloaded or persisted.
+         */
+        DELETED;
+
+        /**
+         * Determines the combined state of two download states.
+         */
         fun and(other: State): State {
             return when {
                 this == DELETED || other == DELETED -> DELETED
@@ -21,6 +56,9 @@ data class DownloadStatus(
         }
     }
 
+    /**
+     * [LiveData] wrapper for a [DownloadStatus].
+     */
     class DownloadStatusLiveData(
         totalBytes: Long? = null,
         downloadedBytes: Long? = null,

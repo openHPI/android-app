@@ -2,9 +2,8 @@ package de.xikolo.models
 
 import de.xikolo.App
 import de.xikolo.R
-import de.xikolo.controllers.downloads.DownloadsFragment.Companion.CATEGORY_CERTIFICATES
-import de.xikolo.controllers.downloads.DownloadsFragment.Companion.CATEGORY_DOCUMENTS
 import de.xikolo.controllers.helper.VideoSettingsHelper
+import de.xikolo.download.DownloadCategory
 import de.xikolo.download.filedownload.FileDownloadItem
 import de.xikolo.download.hlsvideodownload.HlsVideoDownloadItem
 import de.xikolo.utils.extensions.asEscapedFileName
@@ -17,7 +16,7 @@ object DownloadAsset {
         documentLocalization: DocumentLocalization
     ) : FileDownloadItem(
         documentLocalization.fileUrl,
-        CATEGORY_DOCUMENTS,
+        DownloadCategory.Documents,
         documentLocalization.language + "_" +
             documentLocalization.revision + "_" +
             documentLocalization.id + ".pdf"
@@ -34,7 +33,7 @@ object DownloadAsset {
     }
 
     sealed class Certificate(url: String?, fileName: String, val course: de.xikolo.models.Course) :
-        FileDownloadItem(url, CATEGORY_CERTIFICATES, fileName) {
+        FileDownloadItem(url, DownloadCategory.Certificates, fileName) {
         override fun getFileFolder(): String {
             return super.getFileFolder() + File.separator +
                 "Certificates" + File.separator +
@@ -68,7 +67,7 @@ object DownloadAsset {
         url: String?,
         override val fileName: String,
         val course: de.xikolo.models.Course
-    ) : FileDownloadItem(url, course.id, fileName) {
+    ) : FileDownloadItem(url, DownloadCategory.Course(course.id), fileName) {
         override fun getFileFolder(): String {
             return super.getFileFolder() + File.separator +
                 "Courses" + File.separator +
@@ -105,7 +104,7 @@ object DownloadAsset {
             ) :
                 HlsVideoDownloadItem(
                     video.streamToPlay?.hlsUrl,
-                    item.courseId,
+                    DownloadCategory.Course(item.courseId),
                     quality.bitrate,
                     video.subtitles.associate {
                         it.language to it.vttUrl

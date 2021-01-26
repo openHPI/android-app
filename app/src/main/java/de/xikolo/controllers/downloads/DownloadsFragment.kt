@@ -15,6 +15,7 @@ import de.xikolo.config.Feature
 import de.xikolo.controllers.dialogs.ConfirmDeleteDialog
 import de.xikolo.controllers.dialogs.ConfirmDeleteDialogAutoBundle
 import de.xikolo.controllers.helper.NetworkStateHelper
+import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadIdentifier
 import de.xikolo.download.DownloadStatus
 import de.xikolo.download.Downloaders
@@ -32,9 +33,6 @@ class DownloadsFragment :
 
     companion object {
         val TAG: String = DownloadsFragment::class.java.simpleName
-
-        const val CATEGORY_DOCUMENTS = "documents"
-        const val CATEGORY_CERTIFICATES = "certificates"
     }
 
     private var adapter: DownloadsAdapter? = null
@@ -90,8 +88,8 @@ class DownloadsFragment :
     }
 
     private fun buildItems(
-        internalStorageDownloads: Map<DownloadIdentifier, Pair<DownloadStatus, String?>>,
-        sdcardStorageDownloads: Map<DownloadIdentifier, Pair<DownloadStatus, String?>>?
+        internalStorageDownloads: Map<DownloadIdentifier, Pair<DownloadStatus, DownloadCategory>>,
+        sdcardStorageDownloads: Map<DownloadIdentifier, Pair<DownloadStatus, DownloadCategory>>?
     ) {
         var internalAddition = ""
         var sdcardAddition = ""
@@ -128,7 +126,7 @@ class DownloadsFragment :
                 getString(R.string.tab_documents),
                 buildCategories(
                     internalStorageDownloads,
-                    { it == CATEGORY_DOCUMENTS },
+                    { it is DownloadCategory.Documents },
                     { getString(R.string.settings_title_storage_internal) + internalAddition }
                 ).toMutableList()
                     .apply {
@@ -136,7 +134,7 @@ class DownloadsFragment :
                             addAll(
                                 buildCategories(
                                     sdcardStorageDownloads,
-                                    { it == CATEGORY_DOCUMENTS },
+                                    { it is DownloadCategory.Documents },
                                     {
                                         getString(R.string.settings_title_storage_external) +
                                             sdcardAddition
@@ -152,7 +150,7 @@ class DownloadsFragment :
             getString(R.string.tab_certificates),
             buildCategories(
                 internalStorageDownloads,
-                { it == CATEGORY_CERTIFICATES },
+                { it is DownloadCategory.Certificates },
                 { getString(R.string.settings_title_storage_internal) + internalAddition }
             ).toMutableList()
                 .apply {
@@ -160,7 +158,7 @@ class DownloadsFragment :
                         addAll(
                             buildCategories(
                                 sdcardStorageDownloads,
-                                { it == CATEGORY_CERTIFICATES },
+                                { it is DownloadCategory.Certificates },
                                 {
                                     getString(R.string.settings_title_storage_external) +
                                         sdcardAddition
@@ -177,8 +175,8 @@ class DownloadsFragment :
             } else "",
             buildCategories(
                 internalStorageDownloads,
-                { it != CATEGORY_CERTIFICATES && it != CATEGORY_DOCUMENTS },
-                { CourseDao.Unmanaged.find(it)?.title ?: "" }
+                { it is DownloadCategory.Course },
+                { CourseDao.Unmanaged.find((it as DownloadCategory.Course).id)?.title ?: "" }
             )
         )
 
@@ -188,8 +186,8 @@ class DownloadsFragment :
                     " (" + getString(R.string.settings_title_storage_external) + ")",
                 buildCategories(
                     sdcardStorageDownloads,
-                    { it != CATEGORY_CERTIFICATES && it != CATEGORY_DOCUMENTS },
-                    { CourseDao.Unmanaged.find(it)?.title ?: "" }
+                    { it is DownloadCategory.Course },
+                    { CourseDao.Unmanaged.find((it as DownloadCategory.Course).id)?.title ?: "" }
                 )
             )
         }
@@ -198,7 +196,7 @@ class DownloadsFragment :
     }
 
     private fun buildSummary(
-        downloads: Map<DownloadIdentifier, Pair<DownloadStatus, String?>>,
+        downloads: Map<DownloadIdentifier, Pair<DownloadStatus, DownloadCategory>>,
         title: String
     ): DownloadsAdapter.DownloadCategory {
         return DownloadsAdapter.DownloadCategory(
@@ -211,9 +209,9 @@ class DownloadsFragment :
     }
 
     private fun buildCategories(
-        downloads: Map<DownloadIdentifier, Pair<DownloadStatus, String?>>,
-        categoryFilter: (String) -> Boolean,
-        titleSelector: (String?) -> String
+        downloads: Map<DownloadIdentifier, Pair<DownloadStatus, DownloadCategory>>,
+        categoryFilter: (DownloadCategory) -> Boolean,
+        titleSelector: (DownloadCategory) -> String
     ): List<DownloadsAdapter.DownloadCategory> {
         val downloadCategories: MutableList<DownloadsAdapter.DownloadCategory> =
             mutableListOf()
@@ -221,7 +219,7 @@ class DownloadsFragment :
             .entries
             .filter {
                 it.value.first.state == DownloadStatus.State.DOWNLOADED &&
-                    it.value.second?.takeIf { categoryFilter(it) } != null
+                    it.value.second.takeIf { categoryFilter(it) } != null
             }
             .groupBy { it.value.second }
             .mapValues { it.value.map { Pair(it.key, it.value.first) } }

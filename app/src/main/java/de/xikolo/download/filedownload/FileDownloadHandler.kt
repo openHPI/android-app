@@ -3,6 +3,7 @@ package de.xikolo.download.filedownload
 import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
+import com.google.gson.Gson
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.DownloadNotification
@@ -13,6 +14,7 @@ import com.tonyodev.fetch2.FetchListener
 import com.tonyodev.fetch2.Status
 import com.tonyodev.fetch2core.DownloadBlock
 import de.xikolo.App
+import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadHandler
 import de.xikolo.download.DownloadStatus
 import de.xikolo.download.filedownload.FileDownloadRequest.Companion.REQUEST_EXTRA_CATEGORY
@@ -268,7 +270,7 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
 
     override fun getDownloads(
         storage: Storage,
-        callback: (Map<FileDownloadIdentifier, Pair<DownloadStatus, String?>>) -> Unit
+        callback: (Map<FileDownloadIdentifier, Pair<DownloadStatus, DownloadCategory>>) -> Unit
     ) {
         disabledNotificationsManager.getDownloads { a ->
             enabledNotificationsManager.getDownloads { b ->
@@ -278,10 +280,13 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
                         .associate {
                             Pair(
                                 FileDownloadIdentifier(it.id),
-                                getDownloadStatus(it) to it.extras.getString(
-                                    REQUEST_EXTRA_CATEGORY,
-                                    ""
-                                ).takeUnless { it.isEmpty() }
+                                getDownloadStatus(it) to Gson().fromJson(
+                                    it.extras.getString(
+                                        REQUEST_EXTRA_CATEGORY,
+                                        ""
+                                    ),
+                                    DownloadCategory::class.java
+                                )
                             )
                         } +
                         b
@@ -289,10 +294,13 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
                             .associate {
                                 Pair(
                                     FileDownloadIdentifier(it.id),
-                                    getDownloadStatus(it) to it.extras.getString(
-                                        REQUEST_EXTRA_CATEGORY,
-                                        ""
-                                    ).takeUnless { it.isEmpty() }
+                                    getDownloadStatus(it) to Gson().fromJson(
+                                        it.extras.getString(
+                                            REQUEST_EXTRA_CATEGORY,
+                                            ""
+                                        ),
+                                        DownloadCategory::class.java
+                                    )
                                 )
                             }
                 )
