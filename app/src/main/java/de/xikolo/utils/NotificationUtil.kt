@@ -224,7 +224,9 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
     }
 
     private fun createDownloadCompletedContentIntent(
-        parentActivityClass: Class<*>, extraKey: String, extraValue: String
+        parentActivityClass: Class<*>,
+        extraKey: String,
+        extraValue: String
     ): PendingIntent? {
         // Creates an explicit intent for an Activity in your app
         val resultIntent = Intent(this, parentActivityClass)
@@ -247,7 +249,8 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
     }
 
     private fun createDownloadCompletedDeleteIntent(
-        extraKey: String, extraValue: String
+        extraKey: String,
+        extraValue: String
     ): PendingIntent {
         val deleteIntent = Intent(this, NotificationDeletedReceiver::class.java)
         deleteIntent.action = NotificationDeletedReceiver.INTENT_ACTION_NOTIFICATION_DELETED

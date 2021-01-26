@@ -280,9 +280,8 @@ class DownloadsFragment :
     private fun fetchItems() {
         activity?.let { activity ->
             adapter?.clear()
-            if (permissionManager?.requestPermission(
-                    PermissionManager.WRITE_EXTERNAL_STORAGE
-                ) == 1
+            if (
+                permissionManager?.requestPermission(PermissionManager.WRITE_EXTERNAL_STORAGE) == 1
             ) {
                 Downloaders.getDownloads(activity.internalStorage) {
                     val internalStorageDownloads = it

@@ -101,9 +101,9 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
 
     private fun performAction(activity: FragmentActivity, action: () -> Unit): Boolean {
         return if (storage.isWritable) {
-            if (PermissionManager(activity).requestPermission(
-                    PermissionManager.WRITE_EXTERNAL_STORAGE
-                ) == 1
+            if (
+                PermissionManager(activity)
+                    .requestPermission(PermissionManager.WRITE_EXTERNAL_STORAGE) == 1
             ) {
                 action()
                 true

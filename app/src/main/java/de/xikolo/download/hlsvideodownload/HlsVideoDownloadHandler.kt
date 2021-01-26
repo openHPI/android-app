@@ -118,8 +118,8 @@ object HlsVideoDownloadHandler :
                                     val args = HlsVideoDownloadRequest.ArgumentWrapper.decode(
                                         download.request.data
                                     )
-                                    if (download.state == Download.STATE_COMPLETED
-                                        && args.showNotification
+                                    if (download.state == Download.STATE_COMPLETED &&
+                                        args.showNotification
                                     ) {
                                         NotificationUtil(context).showDownloadCompletedNotification(
                                             args.title
@@ -148,11 +148,10 @@ object HlsVideoDownloadHandler :
                         managers[cache.uid] = it
                     }
                 }
-            ).apply {
+            )
+            .apply {
                 if (ApplicationPreferences().isDownloadNetworkLimitedOnMobile) {
-                    requirements = Requirements(
-                        Requirements.NETWORK_UNMETERED
-                    )
+                    requirements = Requirements(Requirements.NETWORK_UNMETERED)
                 }
             }
     }
@@ -283,10 +282,8 @@ object HlsVideoDownloadHandler :
                 it.moveToFirst()
                 while (!it.isAfterLast) {
                     map[HlsVideoDownloadIdentifier.from(it.download.request.id)] =
-                        getDownloadStatus(it.download) to
-                            HlsVideoDownloadRequest.ArgumentWrapper.decode(
-                                it.download.request.data
-                            ).category
+                        getDownloadStatus(it.download) to HlsVideoDownloadRequest.ArgumentWrapper
+                            .decode(it.download.request.data).category
                     it.moveToNext()
                 }
                 map

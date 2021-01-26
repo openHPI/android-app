@@ -667,7 +667,8 @@ open class VideoStreamPlayerFragment : BaseFragment() {
     }
 
     protected open fun changePlaybackSpeed(
-        oldSpeed: VideoSettingsHelper.PlaybackSpeed, newSpeed: VideoSettingsHelper.PlaybackSpeed,
+        oldSpeed: VideoSettingsHelper.PlaybackSpeed,
+        newSpeed: VideoSettingsHelper.PlaybackSpeed,
         fromUser: Boolean
     ) {
         updatePlaybackSpeed()
