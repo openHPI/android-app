@@ -286,7 +286,12 @@ class DownloadViewHelper(
                 }
             }
             DownloadStatus.State.DOWNLOADED -> showEndState()
-            DownloadStatus.State.DELETED -> showStartState()
+            DownloadStatus.State.DELETED -> {
+                showStartState()
+                if(status.error != null){
+                    activity.showToast(R.string.error)
+                }
+            }
         }
     }
 }

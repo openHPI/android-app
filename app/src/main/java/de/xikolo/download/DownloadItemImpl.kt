@@ -36,29 +36,20 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
      */
     abstract val downloader: DownloadHandler<I, R>
 
-    private var downloaderIdentifier: I? = null
-
     /**
      * The identifier of the download.
-     *
      * Must not be accessed when [downloadable] is false.
-     * Equal to [itemIdentifier] before [start] has been called.
-     * After [start] has been called, this is the identifier returned from the download handler.
      */
     final override val identifier: I
-        get() = downloaderIdentifier ?: itemIdentifier
+        get() = downloader.identify(request)
 
     override val openAction: ((FragmentActivity) -> Unit)? = null
 
     /**
      * The download request.
+     * Must not be accessed when [downloadable] is false.
      */
     abstract val request: R
-
-    /**
-     * The identifier of the download before [start] hjas been called.
-     */
-    abstract val itemIdentifier: I
 
     private val statusCache: DownloadStatus.DownloadStatusLiveData by lazy {
         // this has to be lazy initialized because [download] might not be available at class init
@@ -93,10 +84,8 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
                 downloadable -> {
                     downloader.download(
                         request,
-                        { identifier ->
-                            if (identifier != null) {
-                                downloaderIdentifier = identifier
-
+                        { success ->
+                            if (success) {
                                 if (this is DownloadAsset.Course.Item) {
                                     LanalyticsUtil.trackDownloadedFile(this)
                                 }

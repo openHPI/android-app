@@ -1,15 +1,10 @@
 package de.xikolo.download.hlsvideodownload
 
-import android.net.Uri
-import com.google.android.exoplayer2.C
-import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.offline.Download
 import com.google.android.exoplayer2.source.MediaSource
-import com.google.android.exoplayer2.source.SingleSampleMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.upstream.cache.Cache
 import com.google.android.exoplayer2.upstream.cache.CacheDataSource
-import com.google.android.exoplayer2.util.MimeTypes
 import de.xikolo.App
 import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadItemImpl
@@ -22,7 +17,7 @@ open class HlsVideoDownloadItem(
     val url: String?,
     val category: DownloadCategory,
     val quality: Int,
-    val subtitles: Map<String, String>?,
+    //val subtitles: Map<String, String>?,
     storage: Storage = App.instance.preferredStorage
 ) : DownloadItemImpl<MediaSource, HlsVideoDownloadIdentifier, HlsVideoDownloadRequest>(storage) {
 
@@ -75,7 +70,7 @@ open class HlsVideoDownloadItem(
             }
         }
 
-    val subs: Map<String, MediaSource>?
+    /*val subs: Map<String, MediaSource>?
         get() {
             fun getMediaSource(language: String, url: String): MediaSource =
                 SingleSampleMediaSource.Factory(
@@ -108,21 +103,17 @@ open class HlsVideoDownloadItem(
             } finally {
                 storage = originalStorage
             }
-        }
+        }*/
 
     final override val request
         get() = HlsVideoDownloadRequest(
             url!!,
             quality,
-            subtitles,
-            identifier,
+            //subtitles,
             storage,
             title,
             true,
             category
         )
-
-    final override val itemIdentifier: HlsVideoDownloadIdentifier
-        get() = HlsVideoDownloadIdentifier(url!!, quality)
 }
 

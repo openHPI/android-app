@@ -105,10 +105,10 @@ object DownloadAsset {
                 HlsVideoDownloadItem(
                     video.streamToPlay?.hlsUrl,
                     DownloadCategory.Course(item.courseId),
-                    quality.bitrate,
+                    quality.percent/*,
                     video.subtitles.associate {
                         it.language to it.vttUrl
-                    }
+                    }*/
                 ) {
 
                 override val title = App.instance.getString(R.string.video) + ": " + item.title

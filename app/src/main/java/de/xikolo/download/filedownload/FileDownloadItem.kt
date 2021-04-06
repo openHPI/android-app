@@ -13,6 +13,14 @@ import de.xikolo.utils.extensions.preferredStorage
 import de.xikolo.utils.extensions.sdcardStorage
 import java.io.File
 
+/**
+ * DownloadItem class for file downloads.
+ *
+ * @param url The URL of the file to download.
+ * @param category The download category.
+ * @param fileName The file name for the download.
+ * @param storage The storage location for the download.
+ */
 open class FileDownloadItem(
     val url: String?,
     val category: DownloadCategory,
@@ -69,9 +77,6 @@ open class FileDownloadItem(
             category
         )
 
-    final override val itemIdentifier: FileDownloadIdentifier
-        get() = FileDownloadIdentifier(request.buildRequest().id)
-
     override fun onStatusChanged(newStatus: DownloadStatus) {
         super.onStatusChanged(newStatus)
         when (newStatus.state) {
@@ -84,14 +89,27 @@ open class FileDownloadItem(
         }
     }
 
+    /**
+     * Returns the folder the file is stored in.
+     * This is an absolute path also based on [storage].
+     */
     protected open fun getFileFolder(): String {
         return storage.file.absolutePath
     }
 
+    /**
+     * The absolute file path of the download.
+     */
     val filePath: String
         get() = getFileFolder() + File.separator + fileName
 
+    /**
+     * The MIME-type of the download.
+     */
     protected open val mimeType = "application/pdf"
 
+    /**
+     * Whether to show a notification while downloading.
+     */
     protected open val showNotification = true
 }

@@ -3,6 +3,7 @@ package de.xikolo.download.filedownload
 import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 import com.google.gson.Gson
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.Download
@@ -11,23 +12,37 @@ import com.tonyodev.fetch2.Error
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.FetchListener
+import com.tonyodev.fetch2.NetworkType
+import com.tonyodev.fetch2.Request
 import com.tonyodev.fetch2.Status
 import com.tonyodev.fetch2core.DownloadBlock
+import com.tonyodev.fetch2core.Extras
 import de.xikolo.App
+import de.xikolo.R
+import de.xikolo.config.Config
 import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadHandler
 import de.xikolo.download.DownloadStatus
-import de.xikolo.download.filedownload.FileDownloadRequest.Companion.REQUEST_EXTRA_CATEGORY
-import de.xikolo.download.filedownload.FileDownloadRequest.Companion.REQUEST_EXTRA_SHOW_NOTIFICATION
-import de.xikolo.download.filedownload.FileDownloadRequest.Companion.REQUEST_EXTRA_TITLE
+import de.xikolo.managers.UserManager
 import de.xikolo.models.Storage
+import de.xikolo.storages.ApplicationPreferences
 import de.xikolo.utils.NotificationUtil
 import de.xikolo.utils.extensions.createIfNotExists
 import java.io.File
+import java.util.Locale
 
+/**
+ * DownloadHandler for progressive downloads to a file.
+ * Based on [Fetch].
+ */
 object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloadRequest> {
 
-    private val context = App.instance
+    const val REQUEST_EXTRA_TITLE = "title"
+    const val REQUEST_EXTRA_SHOW_NOTIFICATION = "showNotification"
+    const val REQUEST_EXTRA_CATEGORY = "category"
+
+    private val context: Context
+        get() = App.instance
 
     private val disabledNotificationsConfiguration =
         FetchConfiguration.Builder(context)
@@ -53,7 +68,8 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
                         context: Context,
                         notificationManager: NotificationManager
                     ) {
-                        NotificationUtil(context)
+                        // initialize NotificationUtil to create Channels
+                        NotificationUtil.getInstance(context)
                     }
 
                     override fun getChannelId(notificationId: Int, context: Context): String {
@@ -66,11 +82,12 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
                         downloadNotifications: List<DownloadNotification>,
                         context: Context
                     ): Boolean {
-                        val util = NotificationUtil(context)
+                        val util = NotificationUtil.getInstance(context)
                         if (downloadNotifications.isNotEmpty()) {
                             util.notify(
                                 NotificationUtil.DOWNLOAD_RUNNING_NOTIFICATION_ID,
                                 util.getDownloadRunningGroupNotification(
+                                    this,
                                     downloadNotifications.size
                                 )
                             )
@@ -85,7 +102,7 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
                         downloadNotification: DownloadNotification,
                         context: Context
                     ) {
-                        NotificationUtil(context).updateDownloadRunningNotification(
+                        NotificationUtil.getInstance(context).updateDownloadRunningNotification(
                             notificationBuilder,
                             downloadNotification.title,
                             downloadNotification.progress,
@@ -107,7 +124,7 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
                         notificationId: Int,
                         groupId: Int
                     ): NotificationCompat.Builder {
-                        return NotificationUtil(context)
+                        return NotificationUtil.getInstance(context)
                             .getDownloadRunningNotification()
                     }
 
@@ -141,7 +158,7 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
 
             override fun onCompleted(download: Download) {
                 if (download.extras.getBoolean(REQUEST_EXTRA_SHOW_NOTIFICATION, true)) {
-                    NotificationUtil(context).showDownloadCompletedNotification(
+                    NotificationUtil.getInstance(context).showDownloadCompletedNotification(
                         download.extras.getString(REQUEST_EXTRA_TITLE, download.file)
                     )
                 }
@@ -210,11 +227,51 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
         }
     }
 
-    override fun download(
-        request: FileDownloadRequest,
-        callback: ((FileDownloadIdentifier?) -> Unit)?
-    ) {
-        val req = request.buildRequest()
+    override fun identify(request: FileDownloadRequest): FileDownloadIdentifier {
+        return FileDownloadIdentifier(Request(request.url, request.localFile.toUri()).id)
+    }
+
+    override fun download(request: FileDownloadRequest, callback: ((Boolean) -> Unit)?) {
+        val req = Request(request.url, request.localFile.toUri()).apply {
+            networkType =
+                if (ApplicationPreferences().isDownloadNetworkLimitedOnMobile) {
+                    NetworkType.WIFI_ONLY
+                } else {
+                    NetworkType.ALL
+                }
+
+            val extrasMap =
+                mutableMapOf(
+                    REQUEST_EXTRA_TITLE to request.title,
+                    REQUEST_EXTRA_SHOW_NOTIFICATION to request.showNotification.toString(),
+                    REQUEST_EXTRA_CATEGORY to Gson().toJson(
+                        request.category,
+                        DownloadCategory::class.java
+                    )
+                )
+
+            extras = Extras(extrasMap)
+            groupId = 0
+
+            addHeader(Config.HEADER_USER_AGENT, Config.HEADER_USER_AGENT_VALUE)
+            addHeader(
+                Config.HEADER_ACCEPT,
+                Config.MEDIA_TYPE_JSON_API + "; xikolo-version=" + Config.XIKOLO_API_VERSION
+            )
+            addHeader(Config.HEADER_CONTENT_TYPE, Config.MEDIA_TYPE_JSON_API)
+            addHeader(Config.HEADER_USER_PLATFORM, Config.HEADER_USER_PLATFORM_VALUE)
+            addHeader(Config.HEADER_ACCEPT_LANGUAGE, Locale.getDefault().language)
+
+            if (url.toUri().host == App.instance.getString(R.string.app_host) &&
+                UserManager.isAuthorized
+            ) {
+                addHeader(
+                    Config.HEADER_AUTH,
+                    Config.HEADER_AUTH_VALUE_PREFIX_JSON_API + UserManager.token!!
+                )
+            }
+        }
+
         File(req.file).parentFile?.createIfNotExists()
 
         if (req.extras.getBoolean(REQUEST_EXTRA_SHOW_NOTIFICATION, true)) {
@@ -224,10 +281,10 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
         }.enqueue(
             req,
             {
-                callback?.invoke(FileDownloadIdentifier(it.id))
+                callback?.invoke(true)
             },
             {
-                callback?.invoke(null)
+                callback?.invoke(false)
             }
         )
     }
@@ -327,10 +384,11 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
                     Status.CANCELLED -> DownloadStatus.State.DELETED
                     Status.DOWNLOADING, Status.PAUSED -> DownloadStatus.State.RUNNING
                     else -> throw Exception()
-                }
+                },
+                download.error.throwable
             )
         } catch (e: Exception) {
-            DownloadStatus(null, null, DownloadStatus.State.DELETED)
+            DownloadStatus(null, null, DownloadStatus.State.DELETED, null)
         }
     }
 }

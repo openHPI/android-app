@@ -28,11 +28,18 @@ class VideoSettingsHelper(
     private val videoInfoCallback: VideoInfoCallback
 ) {
 
-    enum class VideoQuality(val bitrate: Int) {
-        LOW(200000),
-        MEDIUM(400000),
-        HIGH(5000000),
-        BEST(10000000);
+    // targetBitrate = lowestBitrate + (highestBitrate - lowestBitrate) * bitrateScale / 100
+    /**
+     * Video quality classes based on adaptive bitrate selection by specifying it as a fraction of
+     * the bitrate range.
+     *
+     * targetBitrate = lowestBitrate + (highestBitrate - lowestBitrate) * bitrateScale / 100
+     */
+    enum class VideoQuality(val percent: Int) {
+        LOW(0),
+        MEDIUM(33),
+        HIGH(66),
+        BEST(100);
 
         fun toString(context: Context): String {
             return when (this) {

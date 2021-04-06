@@ -18,7 +18,7 @@ interface DownloadItem<out D, I : DownloadIdentifier> {
     /**
      * The download object.
      * Is null when the download is not available, e.g. it has not been downloaded,
-     * or when an error occured.
+     * or when an error occurred.
      */
     val download: D?
 

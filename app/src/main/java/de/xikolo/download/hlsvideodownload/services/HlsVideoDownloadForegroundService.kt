@@ -9,7 +9,6 @@ import com.google.android.exoplayer2.scheduler.PlatformScheduler
 import com.google.android.exoplayer2.upstream.cache.Cache
 import de.xikolo.R
 import de.xikolo.download.hlsvideodownload.HlsVideoDownloadHandler
-import de.xikolo.download.hlsvideodownload.HlsVideoDownloadRequest
 import de.xikolo.utils.NotificationUtil
 
 abstract class HlsVideoDownloadForegroundService : DownloadService(
@@ -27,9 +26,9 @@ abstract class HlsVideoDownloadForegroundService : DownloadService(
     }
 
     override fun getForegroundNotification(downloads: List<Download>): Notification {
-        val notificationUtil = NotificationUtil(applicationContext)
+        val notificationUtil = NotificationUtil.getInstance(applicationContext)
         val notifications = downloads.mapNotNull {
-            val args = HlsVideoDownloadRequest.ArgumentWrapper.decode(it.request.data)
+            val args = HlsVideoDownloadHandler.ArgumentWrapper.decode(it.request.data)
             if (args.showNotification && it.state != Download.STATE_REMOVING) {
                 args.hashCode() to notificationUtil.updateDownloadRunningNotification(
                     notificationUtil.getDownloadRunningNotification(),
@@ -40,7 +39,7 @@ abstract class HlsVideoDownloadForegroundService : DownloadService(
                         0,
                         buildRemoveDownloadIntent(
                             applicationContext,
-                            HlsVideoDownloadForegroundService::class.java,
+                            this::class.java,
                             it.request.id,
                             true
                         ),
@@ -53,7 +52,7 @@ abstract class HlsVideoDownloadForegroundService : DownloadService(
         notifications.forEach {
             notificationUtil.notify(it.first, it.second)
         }
-        return notificationUtil.getDownloadRunningGroupNotification(downloads.size)
+        return notificationUtil.getDownloadRunningGroupNotification(this, downloads.size)
     }
 
     override fun getScheduler(): PlatformScheduler? {

@@ -1,18 +1,25 @@
 package de.xikolo.download.hlsvideodownload
 
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import com.google.android.exoplayer2.DefaultRenderersFactory
+import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.database.DatabaseProvider
 import com.google.android.exoplayer2.database.ExoDatabaseProvider
 import com.google.android.exoplayer2.offline.Download
+import com.google.android.exoplayer2.offline.DownloadHelper
 import com.google.android.exoplayer2.offline.DownloadManager
 import com.google.android.exoplayer2.offline.DownloadService
 import com.google.android.exoplayer2.scheduler.Requirements
+import com.google.android.exoplayer2.source.hls.HlsManifest
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory
 import com.google.android.exoplayer2.upstream.cache.Cache
 import com.google.android.exoplayer2.upstream.cache.NoOpCacheEvictor
 import com.google.android.exoplayer2.upstream.cache.SimpleCache
+import com.google.gson.Gson
 import de.xikolo.App
 import de.xikolo.config.Config
 import de.xikolo.download.DownloadCategory
@@ -29,10 +36,17 @@ import de.xikolo.utils.NotificationUtil
 import de.xikolo.utils.extensions.internalStorage
 import de.xikolo.utils.extensions.sdcardStorage
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.Executors
 
+/**
+ * DownloadHandler class for ExoPlayer HLS video downloads.
+ */
 object HlsVideoDownloadHandler :
     DownloadHandler<HlsVideoDownloadIdentifier, HlsVideoDownloadRequest> {
+
+    private val context: Context
+        get() = App.instance
 
     private val downloads: MutableMap<String, Download> = mutableMapOf()
     private val listeners: MutableMap<String, ((DownloadStatus) -> Unit)?> =
@@ -47,8 +61,6 @@ object HlsVideoDownloadHandler :
     private var notifierThreadsRunning: MutableMap<DownloadManager, Boolean> = mutableMapOf()
 
     val dataSourceFactory = DefaultHttpDataSourceFactory(Config.HEADER_USER_AGENT_VALUE)
-
-    val context = App.instance
 
     init {
         DownloadService.start(
@@ -116,13 +128,11 @@ object HlsVideoDownloadHandler :
                                     downloads[identifier] = download
                                     notifyStatus(identifier)
 
-                                    val args = HlsVideoDownloadRequest.ArgumentWrapper.decode(
-                                        download.request.data
-                                    )
+                                    val args = ArgumentWrapper.decode(download.request.data)
                                     if (download.state == Download.STATE_COMPLETED &&
                                         args.showNotification
                                     ) {
-                                        NotificationUtil(context).showDownloadCompletedNotification(
+                                        NotificationUtil.getInstance(context).showDownloadCompletedNotification(
                                             args.title
                                         )
                                     }
@@ -166,61 +176,99 @@ object HlsVideoDownloadHandler :
         )
     }
 
-    override fun download(
-        request: HlsVideoDownloadRequest,
-        callback: ((HlsVideoDownloadIdentifier?) -> Unit)?
-    ) {
-        request.buildRequest(context) { downloadRequest ->
-            if (downloadRequest == null) {
-                callback?.invoke(null)
-                return@buildRequest
-            }
+    override fun identify(request: HlsVideoDownloadRequest): HlsVideoDownloadIdentifier {
+        return HlsVideoDownloadIdentifier(request.url, request.quality)
+    }
 
-            val identifier = downloadRequest.id
-            downloads[identifier] = Download(
-                downloadRequest,
-                Download.STATE_QUEUED,
-                0,
-                0,
-                -1,
-                Download.STOP_REASON_NONE,
-                Download.FAILURE_REASON_NONE
-            )
-
-            try {
-                val service =
-                    if (request.storage == context.internalStorage) {
-                        HlsVideoDownloadInternalStorageForegroundService::class.java
-                    } else if (request.storage == context.sdcardStorage &&
-                        getSdcardStorageCache(context) != null
-                    ) {
-                        HlsVideoDownloadSdcardStorageForegroundService::class.java
-                    } else {
-                        throw Exception()
+    override fun download(request: HlsVideoDownloadRequest, callback: ((Boolean) -> Unit)?) {
+        val helper = DownloadHelper.forMediaItem(
+            context,
+            MediaItem.Builder().setUri(Uri.parse(request.url)).build(),
+            DefaultRenderersFactory(context),
+            dataSourceFactory
+        )
+        helper.prepare(
+            object : DownloadHelper.Callback {
+                override fun onPrepared(helper: DownloadHelper) {
+                    val manifest = helper.manifest as HlsManifest
+                    val formats = manifest.masterPlaylist.variants.map {
+                        it.format
                     }
+                    val subtitles = manifest.masterPlaylist.subtitles.map {
+                        it.format.language
+                    }
+                    helper.clearTrackSelections(0)
+                    helper.addTrackSelection(
+                        0,
+                        DefaultTrackSelector.ParametersBuilder(context)
+                            .setForceHighestSupportedBitrate(true)
+                            .build()
+                    )
+                    helper.addTextLanguagesToSelection(
+                        true,
+                        //*(subtitles?.keys?.toTypedArray() ?: arrayOf())
+                    )
+                    val downloadRequest = helper.getDownloadRequest(
+                        identify(request).get(),
+                        ArgumentWrapper(
+                            request.title,
+                            request.showNotification,
+                            request.category
+                        ).encode()
+                    )
+                    helper.release()
 
-                DownloadService.sendAddDownload(
-                    context,
-                    service,
-                    downloadRequest,
-                    true
-                )
+                    val identifier = downloadRequest.id
+                    downloads[identifier] = Download(
+                        downloadRequest,
+                        Download.STATE_QUEUED,
+                        0,
+                        0,
+                        -1,
+                        Download.STOP_REASON_NONE,
+                        Download.FAILURE_REASON_NONE
+                    )
+                    try {
+                        val service =
+                            if (request.storage == context.internalStorage) {
+                                HlsVideoDownloadInternalStorageForegroundService::class.java
+                            } else if (request.storage == context.sdcardStorage &&
+                                getSdcardStorageCache(context) != null
+                            ) {
+                                HlsVideoDownloadSdcardStorageForegroundService::class.java
+                            } else {
+                                throw Exception()
+                            }
 
-                callback?.invoke(request.identifier)
-            } catch (e: Exception) {
-                downloads[identifier] = Download(
-                    downloadRequest,
-                    Download.STATE_FAILED,
-                    0,
-                    0,
-                    -1,
-                    Download.STOP_REASON_NONE,
-                    Download.FAILURE_REASON_UNKNOWN
-                )
-                notifyStatus(identifier)
-                callback?.invoke(null)
+                        DownloadService.sendAddDownload(
+                            context,
+                            service,
+                            downloadRequest,
+                            true
+                        )
+
+                        callback?.invoke(true)
+                    } catch (e: Exception) {
+                        downloads[identifier] = Download(
+                            downloadRequest,
+                            Download.STATE_FAILED,
+                            0,
+                            0,
+                            -1,
+                            Download.STOP_REASON_NONE,
+                            Download.FAILURE_REASON_UNKNOWN
+                        )
+                        notifyStatus(identifier)
+                        callback?.invoke(false)
+                    }
+                }
+
+                override fun onPrepareError(helper: DownloadHelper, e: IOException) {
+                    callback?.invoke(false)
+                    helper.release()
+                }
             }
-        }
+        )
     }
 
     override fun delete(identifier: HlsVideoDownloadIdentifier, callback: ((Boolean) -> Unit)?) {
@@ -285,7 +333,7 @@ object HlsVideoDownloadHandler :
                 while (!it.isAfterLast) {
                     map[
                         HlsVideoDownloadIdentifier.from(it.download.request.id)
-                    ] = getDownloadStatus(it.download) to HlsVideoDownloadRequest.ArgumentWrapper
+                    ] = getDownloadStatus(it.download) to ArgumentWrapper
                         .decode(it.download.request.data).category
                     it.moveToNext()
                 }
@@ -296,7 +344,7 @@ object HlsVideoDownloadHandler :
 
     private fun getDownloadStatus(download: Download?): DownloadStatus {
         if (download == null) {
-            return DownloadStatus(null, null, DownloadStatus.State.DELETED)
+            return DownloadStatus(null, null, DownloadStatus.State.DELETED, null)
         }
 
         val totalSize = download.contentLength.takeUnless { it < 0 }
@@ -314,7 +362,10 @@ object HlsVideoDownloadHandler :
                 Download.STATE_DOWNLOADING -> DownloadStatus.State.RUNNING
                 Download.STATE_COMPLETED -> DownloadStatus.State.DOWNLOADED
                 else -> DownloadStatus.State.DELETED
-            }
+            },
+            if(download.state == Download.STATE_FAILED){
+                Exception("Download failed with reason ${download.failureReason}")
+            } else null
         )
     }
 
@@ -344,5 +395,18 @@ object HlsVideoDownloadHandler :
 
     private fun stopNotifierThread(manager: DownloadManager) {
         notifierThreadsRunning[manager] = false
+    }
+
+    internal data class ArgumentWrapper(
+        val title: String,
+        val showNotification: Boolean,
+        val category: DownloadCategory
+    ) {
+        companion object {
+            fun decode(data: ByteArray): ArgumentWrapper =
+                Gson().fromJson(data.toString(Charsets.UTF_8), ArgumentWrapper::class.java)
+        }
+
+        fun encode(): ByteArray = Gson().toJson(this).toByteArray(Charsets.UTF_8)
     }
 }

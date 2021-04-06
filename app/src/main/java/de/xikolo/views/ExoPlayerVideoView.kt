@@ -98,9 +98,7 @@ open class ExoPlayerVideoView : PlayerView {
             AdaptiveTrackSelection.Factory()
         )
 
-        exoplayer = SimpleExoPlayer.Builder(
-            context
-        )
+        exoplayer = SimpleExoPlayer.Builder(context)
             .setTrackSelector(trackSelector)
             .build()
 

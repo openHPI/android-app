@@ -20,17 +20,24 @@ interface DownloadHandler<I : DownloadIdentifier, R : DownloadRequest> {
     fun isDownloadingAnything(callback: (Boolean) -> Unit)
 
     /**
+     * Returns the identifier for a download request without downloading it.
+     *
+     * @param request The download request.
+     * @return The [DownloadIdentifier] for the request.
+     */
+    fun identify(request: R): I
+
+    /**
      * Initiates the downloading process.
      *
      * @param request The download request which specifies the downloading.
      * @param callback An asynchronous callback to deliver a return value.
-     * It returns the [DownloadIdentifier] for the download when it was initiated successfully,
-     * otherwise this identifier is null.
+     * It returns true when the download was initiated successfully, otherwise false.
      * This callback is always invoked if not null.
      */
     fun download(
         request: R,
-        callback: ((I?) -> Unit)? = null
+        callback: ((Boolean) -> Unit)? = null
     )
 
     /**
@@ -38,7 +45,7 @@ interface DownloadHandler<I : DownloadIdentifier, R : DownloadRequest> {
      *
      * @param identifier The identifier of the download.
      * @param callback An asynchronous callback to deliver a return value.
-     * It returns true when the download was deleted successfully, otherwise false.
+     * It returns true when the download deletion was initiated successfully, otherwise false.
      * This callback is always invoked if not null.
      */
     fun delete(
@@ -49,6 +56,7 @@ interface DownloadHandler<I : DownloadIdentifier, R : DownloadRequest> {
     /**
      * Registers a listener for a download that notifies when the download status changes.
      * Overrides the previous listener.
+     * The listener is always invoked immediately after registering it.
      *
      * @param identifier The identifier of the download.
      * @param listener An asynchronous callback that is invoked regularly with the most recent

@@ -19,7 +19,7 @@ import de.xikolo.controllers.main.MainActivity
 import de.xikolo.receivers.NotificationDeletedReceiver
 import de.xikolo.storages.NotificationStorage
 
-class NotificationUtil(base: Context) : ContextWrapper(base) {
+class NotificationUtil private constructor(base: Context) : ContextWrapper(base) {
 
     companion object {
         const val DOWNLOADS_CHANNEL_ID = BuildConfig.APPLICATION_ID + ".downloads"
@@ -31,16 +31,12 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
         const val NOTIFICATION_DELETED_KEY_DOWNLOAD_TITLE = "key_notification_deleted_title"
         const val NOTIFICATION_DELETED_KEY_DOWNLOAD_ALL = "key_notification_deleted_all"
 
-        fun deleteDownloadNotificationsFromIntent(intent: Intent) {
-            val notificationStorage = NotificationStorage()
+        private var instance: NotificationUtil? = null
 
-            val title = intent.getStringExtra(NOTIFICATION_DELETED_KEY_DOWNLOAD_TITLE)
-            if (title != null) {
-                notificationStorage.deleteDownloadNotification(title)
-            } else if (intent.getStringExtra(NOTIFICATION_DELETED_KEY_DOWNLOAD_ALL) != null) {
-                notificationStorage.delete()
+        fun getInstance(context: Context): NotificationUtil =
+            instance ?: synchronized(this) {
+                instance ?: NotificationUtil(context).also { instance = it }
             }
-        }
     }
 
     private val manager: NotificationManager by lazy {
@@ -59,7 +55,21 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
         manager.cancel(id)
     }
 
-    fun getDownloadRunningGroupNotification(count: Int): Notification {
+    fun deleteDownloadNotificationsFromIntent(intent: Intent) {
+        val notificationStorage = NotificationStorage()
+
+        val title = intent.getStringExtra(NOTIFICATION_DELETED_KEY_DOWNLOAD_TITLE)
+        if (title != null) {
+            notificationStorage.deleteDownloadNotification(title)
+        } else if (intent.getStringExtra(NOTIFICATION_DELETED_KEY_DOWNLOAD_ALL) != null) {
+            notificationStorage.delete()
+        }
+    }
+
+    private val notificationCountMap: MutableMap<Any, Int> = mutableMapOf()
+
+    fun getDownloadRunningGroupNotification(scope: Any, count: Int): Notification {
+        notificationCountMap[scope] = count
         return NotificationCompat.Builder(this, DOWNLOADS_CHANNEL_ID)
             .setGroupSummary(true)
             .setGroup(DOWNLOAD_RUNNING_NOTIFICATION_GROUP)
@@ -74,7 +84,7 @@ class NotificationUtil(base: Context) : ContextWrapper(base) {
             .setContentText(
                 getString(
                     R.string.notification_multiple_downloads_running,
-                    count
+                    notificationCountMap.values.sum()
                 )
             )
             .setPriority(NotificationCompat.PRIORITY_LOW)

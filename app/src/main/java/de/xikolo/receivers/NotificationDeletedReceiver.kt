@@ -16,7 +16,7 @@ class NotificationDeletedReceiver : BroadcastReceiver() {
         val action = intent.action
 
         if (INTENT_ACTION_NOTIFICATION_DELETED == action) {
-            NotificationUtil.deleteDownloadNotificationsFromIntent(intent)
+            NotificationUtil.getInstance(context).deleteDownloadNotificationsFromIntent(intent)
         }
     }
 

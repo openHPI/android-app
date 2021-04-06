@@ -1,23 +1,13 @@
 package de.xikolo.testing.instrumented.unit
 
-import androidx.test.rule.ActivityTestRule
-import androidx.test.rule.GrantPermissionRule
-import de.xikolo.controllers.main.MainActivity
 import de.xikolo.download.DownloadIdentifier
 import de.xikolo.download.DownloadItem
 import de.xikolo.testing.instrumented.mocking.base.BaseTest
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
 
 abstract class DownloadItemTest<T : DownloadItem<F, I>,
     F, I : DownloadIdentifier> : BaseTest() {
 
-    @Rule
+    /*@Rule
     @JvmField
     var activityTestRule =
         ActivityTestRule(MainActivity::class.java, false, true)
@@ -154,5 +144,5 @@ abstract class DownloadItemTest<T : DownloadItem<F, I>,
                 throw Exception()
             }
         }
-    }
+    }*/
 }

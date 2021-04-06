@@ -98,5 +98,6 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-contrib:3.3.0")
     androidTestImplementation("androidx.test:runner:1.3.0")
     androidTestImplementation("androidx.test:rules:1.3.0")
+    androidTestImplementation("io.mockk:mockk-android:1.11.0")
     testImplementation("junit:junit:4.13.2")
 }

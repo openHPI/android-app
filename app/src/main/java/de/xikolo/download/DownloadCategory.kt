@@ -33,7 +33,7 @@ sealed class DownloadCategory {
      *
      * @param id The course id.
      */
-    class Course(val id: String) : DownloadCategory()
+    data class Course(val id: String) : DownloadCategory()
 
     companion object {
 
@@ -43,7 +43,7 @@ sealed class DownloadCategory {
         class JsonAdapter : TypeAdapter<DownloadCategory>() {
             override fun write(out: JsonWriter?, value: DownloadCategory?) {
                 out?.beginObject()
-                out?.name("category")
+                out?.name("name")
                 when (value) {
                     is Other -> out?.value("other")
                     is Documents -> out?.value("documents")
@@ -57,13 +57,17 @@ sealed class DownloadCategory {
                 out?.endObject()
             }
 
-            override fun read(input: JsonReader?): DownloadCategory {
+            override fun read(input: JsonReader?): DownloadCategory? {
                 input?.beginObject()
+                input?.nextName()
                 val category = when (input?.nextString()) {
                     "other" -> Other
                     "documents" -> Documents
                     "certificates" -> Certificates
-                    "course" -> Course(input.nextString())
+                    "course" -> {
+                        input.nextName()
+                        Course(input.nextString())
+                    }
                     else -> throw JsonSyntaxException("unsupported category")
                 }
                 input.endObject()

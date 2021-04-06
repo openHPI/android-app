@@ -602,21 +602,21 @@ open class VideoStreamPlayerFragment : BaseFragment() {
                     }
                     VideoSettingsHelper.PlaybackMode.LOW -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
-                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.LOW.bitrate)
+                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.LOW.percent)
                     }
                     VideoSettingsHelper.PlaybackMode.MEDIUM -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
                         playerView.setDesiredBitrate(
-                            VideoSettingsHelper.VideoQuality.MEDIUM.bitrate
+                            VideoSettingsHelper.VideoQuality.MEDIUM.percent
                         )
                     }
                     VideoSettingsHelper.PlaybackMode.HIGH -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
-                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.HIGH.bitrate)
+                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.HIGH.percent)
                     }
                     VideoSettingsHelper.PlaybackMode.BEST -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
-                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.BEST.bitrate)
+                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.BEST.percent)
                     }
                     VideoSettingsHelper.PlaybackMode.LEGACY_HD -> {
                         playerView.setProgressiveVideoUri(Uri.parse(videoStream.hdUrl))

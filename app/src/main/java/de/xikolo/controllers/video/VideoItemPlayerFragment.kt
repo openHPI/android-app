@@ -217,9 +217,9 @@ class VideoItemPlayerFragment : VideoStreamPlayerFragment() {
 
         if (item != null && videoDownloadPresent(item)) {
             playerView.setVideoSource(item.download!!)
-            item.subs?.let {
+            /*item.subs?.let {
                 playerView.setSubtitleSources(it)
-            }
+            }*/
             isOfflineVideo = true
             return true
         }

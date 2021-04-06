@@ -1,22 +1,13 @@
 package de.xikolo.testing.instrumented.unit
 
-import de.xikolo.download.DownloadItem
 import de.xikolo.download.filedownload.FileDownloadIdentifier
 import de.xikolo.download.filedownload.FileDownloadItem
-import de.xikolo.testing.instrumented.mocking.SampleMockData
-import de.xikolo.utils.extensions.preferredStorage
-import junit.framework.Assert.assertFalse
-import junit.framework.Assert.assertNotNull
-import junit.framework.Assert.assertNull
-import junit.framework.Assert.assertTrue
-import org.junit.Before
-import org.junit.Test
 import java.io.File
 
 class FileDownloadItemTest : DownloadItemTest<FileDownloadItem,
     File, FileDownloadIdentifier>() {
 
-    private val storage = context.preferredStorage
+    /*private val storage = context.preferredStorage
 
     override var testDownloadItem =
         FileDownloadItem(SampleMockData.mockVideoStreamSdUrl, "sdvideo.mp4", storage)
@@ -267,5 +258,5 @@ class FileDownloadItemTest : DownloadItemTest<FileDownloadItem,
                 assertNotNull(testSecondaryItem.download)
             }
         }
-    }
+    }*/
 }
