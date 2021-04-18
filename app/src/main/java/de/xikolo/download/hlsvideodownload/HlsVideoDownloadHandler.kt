@@ -205,6 +205,8 @@ object HlsVideoDownloadHandler :
                             abs(it - targetBitrate).roundToInt()
                         }
                         .minOrNull()
+                    val estimatedSize = closestBitrate
+                        ?.times(manifest.mediaPlaylist.durationUs * 1000000 / 8)
 
                     val subtitles = manifest.masterPlaylist.subtitles
                         .mapNotNull {
@@ -234,7 +236,8 @@ object HlsVideoDownloadHandler :
                         ArgumentWrapper(
                             request.title,
                             request.showNotification,
-                            request.category
+                            request.category,
+                            estimatedSize
                         ).encode()
                     )
                     helper.release()
@@ -368,7 +371,8 @@ object HlsVideoDownloadHandler :
             return DownloadStatus(null, null, DownloadStatus.State.DELETED, null)
         }
 
-        val totalSize = download.contentLength.takeUnless { it < 0 }
+        val estimatedSize = ArgumentWrapper.decode(download.request.data).estimatedSize
+        val totalSize = download.contentLength.takeUnless { it < 0 } ?: estimatedSize
             ?: if (download.state == Download.STATE_COMPLETED) {
                 download.bytesDownloaded
             } else {
@@ -421,7 +425,8 @@ object HlsVideoDownloadHandler :
     internal data class ArgumentWrapper(
         val title: String,
         val showNotification: Boolean,
-        val category: DownloadCategory
+        val category: DownloadCategory,
+        val estimatedSize: Long?
     ) {
         companion object {
             fun decode(data: ByteArray): ArgumentWrapper =
