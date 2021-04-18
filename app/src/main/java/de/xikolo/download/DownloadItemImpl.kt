@@ -36,10 +36,6 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
      */
     abstract val downloader: DownloadHandler<I, R>
 
-    /**
-     * The identifier of the download.
-     * Must not be accessed when [downloadable] is false.
-     */
     final override val identifier: I
         get() = downloader.identify(request)
 

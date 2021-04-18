@@ -287,13 +287,13 @@ open class ExoPlayerVideoView : PlayerView {
         return null
     }
 
-    fun setDesiredBitrate(bitrate: Int?) {
+    fun setDesiredQuality(quality: Float?) {
         trackSelector.setParameters(
             DefaultTrackSelector.ParametersBuilder(context)
                 .apply {
-                    if (bitrate != null) {
-                        setMaxVideoBitrate(bitrate)
-                        setMinVideoBitrate(bitrate)
+                    if (quality != null) {
+                        setMaxVideoBitrate(quality.toInt()) // ToDo
+                        setMinVideoBitrate(quality.toInt())
                     }
                 }
         )

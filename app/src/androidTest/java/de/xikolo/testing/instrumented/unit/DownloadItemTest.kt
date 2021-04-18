@@ -1,24 +1,35 @@
 package de.xikolo.testing.instrumented.unit
 
+import android.Manifest
+import androidx.test.rule.ActivityTestRule
+import androidx.test.rule.GrantPermissionRule
+import de.xikolo.controllers.main.MainActivity
 import de.xikolo.download.DownloadIdentifier
 import de.xikolo.download.DownloadItem
+import de.xikolo.download.DownloadStatus
 import de.xikolo.testing.instrumented.mocking.base.BaseTest
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
 
 abstract class DownloadItemTest<T : DownloadItem<F, I>,
     F, I : DownloadIdentifier> : BaseTest() {
 
-    /*@Rule
+    @Rule
     @JvmField
     var activityTestRule =
         ActivityTestRule(MainActivity::class.java, false, true)
 
     @Rule
     @JvmField
-    var permissionRule =
-        GrantPermissionRule.grant(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    var permissionRule = GrantPermissionRule.grant(Manifest.permission.WRITE_EXTERNAL_STORAGE)
 
-    abstract var testDownloadItem: T
-    abstract var testDownloadItemNotDownloadable: T
+    abstract val testDownloadItem: T
+    abstract val testDownloadItemNotDownloadable: T
 
     @Before
     fun deleteItem() {
@@ -26,113 +37,89 @@ abstract class DownloadItemTest<T : DownloadItem<F, I>,
     }
 
     @Test
-    fun testIsDownloadable() {
-        assertTrue(testDownloadItem.isDownloadable)
-        assertFalse(testDownloadItemNotDownloadable.isDownloadable)
+    fun testIdentifier() {
+        testDownloadItem.identifier
     }
 
     @Test
-    fun testStateBeforeDownload() {
-        testDownloadItem.isDownloadRunning {
-            assertFalse(it)
+    fun testDownload() {
+        testDownloadItem.download
+        assertNull(testDownloadItemNotDownloadable.download)
+    }
 
+    @Test
+    fun testDownloadable() {
+        assertTrue(testDownloadItem.downloadable)
+        assertFalse(testDownloadItemNotDownloadable.downloadable)
+    }
+
+    @Test
+    fun testTitle() {
+        testDownloadItem.title
+        testDownloadItemNotDownloadable.title
+    }
+
+    @Test
+    fun testOpenAction() {
+        testDownloadItem.openAction
+        testDownloadItemNotDownloadable.openAction
+    }
+
+    @Test
+    fun testSize() {
+        testDownloadItem.size
+        testDownloadItemNotDownloadable.size
+    }
+
+    @Test
+    fun testStatus() {
+        testDownloadItem.status
+        testDownloadItemNotDownloadable.status
+    }
+
+    @Test
+    fun testStatusBefore() {
+        testDownloadItem.status.observe(activityTestRule.activity){
+            assertNotNull(it)
             assertNull(testDownloadItem.download)
-            assertFalse(testDownloadItem.downloadExists)
         }
     }
 
     @Test
-    fun testStartDownload() {
-        var started = false
-        var completed = false
-        testDownloadItem.stateListener = object : DownloadItem.StateListener {
-            override fun onStarted() {
-                started = true
-            }
-
-            override fun onCompleted() {
-                completed = true
-            }
-
-            override fun onDeleted() {}
-        }
-
-        testDownloadItem.start(activityTestRule.activity) {
-            assertNotNull(it)
-
-            assertTrue(started)
-            testDownloadItem.isDownloadRunning {
-                assertTrue(it)
-
-                testDownloadItem.start(activityTestRule.activity) {
-                    assertNull(it)
-
-                    waitWhile({ !completed })
-
-                    assertTrue(testDownloadItem.downloadExists)
-                    assertNotNull(testDownloadItem.download)
-                }
+    fun testDownloadAndDelete() {
+        var downloaded = false
+        testDownloadItem.status.observe(activityTestRule.activity){
+            if(it.state == DownloadStatus.State.DOWNLOADED) {
+                downloaded = true
             }
         }
-    }
 
-    @Test
-    fun testCancelDownload() {
-        testDownloadItem.start(activityTestRule.activity) {
-            assertNotNull(it)
+        assertNull(testDownloadItem.download)
 
-            testDownloadItem.isDownloadRunning {
-                assertTrue(it)
-
-                testDownloadItem.cancel(activityTestRule.activity) {
-                    assertTrue(it)
-
-                    testDownloadItem.isDownloadRunning {
-                        assertFalse(it)
-
-                        assertFalse(testDownloadItem.downloadExists)
-                        assertNull(testDownloadItem.download)
-                    }
-                }
-            }
+        var startResult = false
+        testDownloadItem.start(activityTestRule.activity){
+            startResult = it
         }
-    }
 
-    @Test
-    fun testDeleteDownload() {
-        var deleted = true
-        var completed = false
-        testDownloadItem.stateListener = object : DownloadItem.StateListener {
-            override fun onStarted() {}
+        waitWhile({!startResult}, 3000)
+        waitWhile({!downloaded})
+        assertNotNull(testDownloadItem.download)
 
-            override fun onCompleted() {
-                completed = true
-            }
-
-            override fun onDeleted() {
+        var deleted = false
+        testDownloadItem.status.observe(activityTestRule.activity){
+            if(it.state == DownloadStatus.State.DELETED) {
                 deleted = true
             }
         }
 
-        testDownloadItem.delete(activityTestRule.activity) {
-            assertFalse(it)
-
-            testDownloadItem.start(activityTestRule.activity) {
-                assertNotNull(it)
-
-                waitWhile({ !completed })
-
-                assertTrue(testDownloadItem.downloadExists)
-
-                testDownloadItem.delete(activityTestRule.activity) {
-                    assertTrue(it)
-
-                    assertTrue(deleted)
-                    assertFalse(testDownloadItem.downloadExists)
-                    assertNull(testDownloadItem.download)
-                }
-            }
+        var deleteResult = false
+        testDownloadItem.delete(activityTestRule.activity){
+            deleteResult = it
         }
+
+        waitWhile({!deleteResult}, 3000)
+        waitWhile({!deleted})
+        assertNull(testDownloadItem.download)
     }
 
     protected fun waitWhile(condition: () -> Boolean, timeout: Long = 300000) {
@@ -141,8 +128,8 @@ abstract class DownloadItemTest<T : DownloadItem<F, I>,
             Thread.sleep(100)
             waited += 100
             if (waited > timeout) {
-                throw Exception()
+                throw Exception("Condition timeout")
             }
         }
-    }*/
+    }
 }

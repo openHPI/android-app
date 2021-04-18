@@ -105,7 +105,7 @@ object DownloadAsset {
                 HlsVideoDownloadItem(
                     video.streamToPlay?.hlsUrl,
                     DownloadCategory.Course(item.courseId),
-                    quality.percent/*,
+                    quality.qualityFraction/*,
                     video.subtitles.associate {
                         it.language to it.vttUrl
                     }*/

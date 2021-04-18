@@ -598,25 +598,25 @@ open class VideoStreamPlayerFragment : BaseFragment() {
                 when (mode) {
                     VideoSettingsHelper.PlaybackMode.AUTO -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
-                        playerView.setDesiredBitrate(null)
+                        playerView.setDesiredQuality(null)
                     }
                     VideoSettingsHelper.PlaybackMode.LOW -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
-                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.LOW.percent)
+                        playerView.setDesiredQuality(VideoSettingsHelper.VideoQuality.LOW.qualityFraction)
                     }
                     VideoSettingsHelper.PlaybackMode.MEDIUM -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
-                        playerView.setDesiredBitrate(
-                            VideoSettingsHelper.VideoQuality.MEDIUM.percent
+                        playerView.setDesiredQuality(
+                            VideoSettingsHelper.VideoQuality.MEDIUM.qualityFraction
                         )
                     }
                     VideoSettingsHelper.PlaybackMode.HIGH -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
-                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.HIGH.percent)
+                        playerView.setDesiredQuality(VideoSettingsHelper.VideoQuality.HIGH.qualityFraction)
                     }
                     VideoSettingsHelper.PlaybackMode.BEST -> {
                         playerView.setHLSVideoUri(Uri.parse(videoStream.hlsUrl))
-                        playerView.setDesiredBitrate(VideoSettingsHelper.VideoQuality.BEST.percent)
+                        playerView.setDesiredQuality(VideoSettingsHelper.VideoQuality.BEST.qualityFraction)
                     }
                     VideoSettingsHelper.PlaybackMode.LEGACY_HD -> {
                         playerView.setProgressiveVideoUri(Uri.parse(videoStream.hdUrl))

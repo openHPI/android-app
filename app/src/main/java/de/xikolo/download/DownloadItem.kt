@@ -12,6 +12,7 @@ interface DownloadItem<out D, I : DownloadIdentifier> {
 
     /**
      * The identifier of the download.
+     * Must not be accessed when [downloadable] is false.
      */
     val identifier: I
 
@@ -62,7 +63,7 @@ interface DownloadItem<out D, I : DownloadIdentifier> {
      *
      * @param activity The context activity for the download. Used to e.g. check permissions.
      * @param callback An asynchronous callback to deliver a return value.
-     * It returns true when the download was deleted successfully, otherwise false.
+     * It returns true when the download deletion was initiated successfully, otherwise false.
      * This callback is always invoked if not null.
      */
     fun delete(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)

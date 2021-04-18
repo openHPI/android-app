@@ -13,8 +13,8 @@ import de.xikolo.models.Storage
  * Video, audio and subtitle tracks are downloaded.
  *
  * @param url The HLS master playlist URL.
- * @param quality The desired bitrate of the video as in [VideoSettingsHelper.VideoQuality]
- * bitratePercent.
+ * @param quality The desired percentage of the maximum available bitrate of the video as in
+ * [VideoSettingsHelper.VideoQuality.qualityFraction].
  * This does not necessarily need to correspond to the bitrates in the master playlist.
  * Based on this parameter, the track with the closest calculated target bitrate in the master
  * playlist is selected.
@@ -26,7 +26,7 @@ import de.xikolo.models.Storage
  */
 class HlsVideoDownloadRequest(
     val url: String,
-    val quality: Int,
+    val quality: Float,
     //val subtitles: Map<String, String>?,
     val storage: Storage,
     override val title: String,

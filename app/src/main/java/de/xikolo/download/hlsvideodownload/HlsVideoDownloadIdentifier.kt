@@ -10,7 +10,7 @@ import de.xikolo.download.DownloadIdentifier
  */
 data class HlsVideoDownloadIdentifier(
     private val url: String,
-    private val quality: Int
+    private val quality: Float
 ) : DownloadIdentifier {
 
     companion object {
@@ -22,7 +22,7 @@ data class HlsVideoDownloadIdentifier(
          */
         fun from(identifier: String): HlsVideoDownloadIdentifier {
             val parts = identifier.split(";", limit = 2)
-            return HlsVideoDownloadIdentifier(parts[1], parts[0].toInt())
+            return HlsVideoDownloadIdentifier(parts[1], parts[0].toInt() / 100.0f)
         }
     }
 
@@ -30,6 +30,6 @@ data class HlsVideoDownloadIdentifier(
      * Returns the internal identifier.
      */
     fun get(): String {
-        return "$quality;$url"
+        return "${(quality * 100).toInt()};$url"
     }
 }

@@ -112,9 +112,16 @@ fun <T : Video> T.cast(activity: Activity, autoPlay: Boolean): PendingResult<Rem
                 .build()
         }
 
-        val castMetadata = MediaInfo.Builder(streamToPlay?.hdUrl)
+        // HLS video casting
+        /*val castMetadata = MediaInfo.Builder(streamToPlay?.hlsUrl)
             .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
             .setContentType("application/x-mpegURL")
+            .setMetadata(mediaMetadata)
+            .build()*/
+
+        val castMetadata = MediaInfo.Builder(streamToPlay?.hdUrl)
+            .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
+            .setContentType("videos/mp4")
             .setMetadata(mediaMetadata)
             .setMediaTracks(subtitleTracks)
             .setTextTrackStyle(TextTrackStyle.fromSystemSettings(activity))

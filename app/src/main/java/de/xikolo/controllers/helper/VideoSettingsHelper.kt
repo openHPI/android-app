@@ -33,13 +33,13 @@ class VideoSettingsHelper(
      * Video quality classes based on adaptive bitrate selection by specifying it as a fraction of
      * the bitrate range.
      *
-     * targetBitrate = lowestBitrate + (highestBitrate - lowestBitrate) * bitrateScale / 100
+     * targetBitrate = lowestBitrate + (highestBitrate - lowestBitrate) * qualityFraction
      */
-    enum class VideoQuality(val percent: Int) {
-        LOW(0),
-        MEDIUM(33),
-        HIGH(66),
-        BEST(100);
+    enum class VideoQuality(val qualityFraction: Float) {
+        LOW(0f),
+        MEDIUM(0.33f),
+        HIGH(0.67f),
+        BEST(1f);
 
         fun toString(context: Context): String {
             return when (this) {

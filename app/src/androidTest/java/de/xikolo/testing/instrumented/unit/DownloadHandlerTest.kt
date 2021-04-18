@@ -24,11 +24,12 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
 
     @Rule
     @JvmField
-    var activityTestRule = ActivityTestRule(MainActivity::class.java, false, true)
+    var activityTestRule =
+        ActivityTestRule(MainActivity::class.java, false, true)
 
     @Rule
     @JvmField
-    var permissionRule: GrantPermissionRule = GrantPermissionRule.grant(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    var permissionRule = GrantPermissionRule.grant(Manifest.permission.WRITE_EXTERNAL_STORAGE)
 
     abstract var downloadHandler: T
 

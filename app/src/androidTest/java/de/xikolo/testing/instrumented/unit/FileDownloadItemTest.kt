@@ -1,262 +1,84 @@
 package de.xikolo.testing.instrumented.unit
 
+import de.xikolo.download.DownloadCategory
+import de.xikolo.download.DownloadStatus
 import de.xikolo.download.filedownload.FileDownloadIdentifier
 import de.xikolo.download.filedownload.FileDownloadItem
+import de.xikolo.testing.instrumented.mocking.SampleMockData
+import de.xikolo.utils.extensions.preferredStorage
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
 import java.io.File
 
 class FileDownloadItemTest : DownloadItemTest<FileDownloadItem,
     File, FileDownloadIdentifier>() {
 
-    /*private val storage = context.preferredStorage
+    private val storage = context.preferredStorage
 
-    override var testDownloadItem =
-        FileDownloadItem(SampleMockData.mockVideoStreamSdUrl, "sdvideo.mp4", storage)
-    override var testDownloadItemNotDownloadable = FileDownloadItem(null, "null")
-
-    private var testSecondaryItem = FileDownloadItem(
-        SampleMockData.mockVideoStreamThumbnailUrl,
-        "thumb.jpg",
+    override val testDownloadItem = FileDownloadItem(
+        SampleMockData.mockVideoStreamSdUrl,
+        DownloadCategory.Other,
+        "sdvideo.mp4",
         storage
     )
-    private var testDownloadItemWithSecondary =
-        object : FileDownloadItem(
-            SampleMockData.mockVideoStreamSdUrl,
-            "sdvideo2.mp4",
-            storage
-        ) {
-            override val secondaryDownloadItems: Set<FileDownloadItem> = setOf(testSecondaryItem)
-        }
-    private var testDownloadItemWithSecondaryNotDeletingSecondary =
-        object : FileDownloadItem(
-            SampleMockData.mockVideoStreamSdUrl,
-            "sdvideo3.mp4",
-            storage
-        ) {
-            override val secondaryDownloadItems: Set<FileDownloadItem> = setOf(testSecondaryItem)
-            override val deleteSecondaryDownloadItemPredicate: (FileDownloadItem) -> Boolean =
-                { false }
-        }
+    override val testDownloadItemNotDownloadable = FileDownloadItem(
+        null,
+        DownloadCategory.Other,
+        "null.null"
+    )
 
-    @Before
-    fun deleteSecondaryItems() {
-        testDownloadItemWithSecondary.delete(activityTestRule.activity)
-
-        testSecondaryItem.delete(activityTestRule.activity)
+    @Test
+    fun testFileName() {
+        testDownloadItem.fileName
+        testDownloadItemNotDownloadable.fileName
     }
 
     @Test
-    fun testDeletesTempFile() {
-        var completedMain = false
-        testDownloadItem.stateListener = object : DownloadItem.StateListener {
-            override fun onStarted() {}
-
-            override fun onCompleted() {
-                completedMain = true
+    fun testFileHandling() {
+        var downloaded = false
+        testDownloadItem.status.observe(activityTestRule.activity) {
+            if (it.state == DownloadStatus.State.DOWNLOADED) {
+                downloaded = true
             }
-
-            override fun onDeleted() {}
         }
+
         testDownloadItem.start(activityTestRule.activity) {
+            assertFalse(
+                File(testDownloadItem.filePath).exists()
+            )
             assertTrue(
                 File(testDownloadItem.filePath + ".tmp").exists()
             )
 
-            waitWhile({ !completedMain })
+            waitWhile({ !downloaded })
 
+            assertTrue(
+                File(testDownloadItem.filePath).exists()
+            )
             assertFalse(
                 File(testDownloadItem.filePath + ".tmp").exists()
             )
+            assertTrue(
+                testDownloadItem.download?.exists() == true
+            )
 
-            testDownloadItem.delete(activityTestRule.activity) {
-                testDownloadItem.start(activityTestRule.activity) {
-                    assertTrue(
-                        File(testDownloadItem.filePath + ".tmp").exists()
-                    )
-
-                    testDownloadItem.cancel(activityTestRule.activity) {
-                        assertFalse(
-                            File(testDownloadItem.filePath + ".tmp").exists()
-                        )
-                    }
+            var deleted = false
+            testDownloadItem.status.observe(activityTestRule.activity) {
+                if (it.state == DownloadStatus.State.DELETED) {
+                    deleted = true
                 }
             }
+
+            testDownloadItem.delete(activityTestRule.activity)
+            waitWhile({ !deleted }, 3000)
+
+            assertFalse(
+                File(testDownloadItem.filePath).exists()
+            )
+            assertFalse(
+                testDownloadItem.download?.exists() == true
+            )
         }
     }
-
-    @Test
-    fun testStartDownloadWithSecondary() {
-        var completedMain = false
-        testDownloadItemWithSecondary.stateListener = object : DownloadItem.StateListener {
-            override fun onStarted() {}
-
-            override fun onCompleted() {
-                completedMain = true
-            }
-
-            override fun onDeleted() {}
-        }
-        var completedSecondary = false
-        testSecondaryItem.stateListener = object : DownloadItem.StateListener {
-            override fun onStarted() {}
-
-            override fun onCompleted() {
-                completedSecondary = true
-            }
-
-            override fun onDeleted() {}
-        }
-
-        testDownloadItemWithSecondary.start(activityTestRule.activity) {
-            assertNotNull(it)
-
-            testDownloadItemWithSecondary.isDownloadRunning {
-                assertTrue(it)
-
-                testSecondaryItem.isDownloadRunning {
-                    assertTrue(it)
-                }
-
-                testDownloadItemWithSecondary.start(activityTestRule.activity) {
-                    assertNull(it)
-
-                    testSecondaryItem.start(activityTestRule.activity) {
-                        assertNull(it)
-
-                        waitWhile({ !completedMain })
-
-                        assertTrue(completedSecondary)
-                        assertTrue(testDownloadItemWithSecondary.downloadExists)
-                        assertTrue(testSecondaryItem.downloadExists)
-                        assertNotNull(testDownloadItemWithSecondary.download)
-                        assertNotNull(testSecondaryItem.download)
-
-                        testDownloadItemWithSecondary.start(activityTestRule.activity) {
-                            assertNull(it)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun testCancelDownloadWithSecondary() {
-        testDownloadItemWithSecondary.start(activityTestRule.activity) {
-            assertNotNull(it)
-
-            testDownloadItemWithSecondary.cancel(activityTestRule.activity) {
-                assertTrue(it)
-
-                testDownloadItemWithSecondary.isDownloadRunning {
-                    assertFalse(it)
-
-                    assertFalse(testDownloadItemWithSecondary.downloadExists)
-                    assertNull(testDownloadItemWithSecondary.download)
-
-                    testSecondaryItem.isDownloadRunning {
-                        assertFalse(it)
-
-                        assertFalse(testSecondaryItem.downloadExists)
-                        assertNull(testSecondaryItem.download)
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun testDeleteDownloadWithSecondary() {
-        var completedMain = false
-        var deletedMain = false
-        testDownloadItemWithSecondary.stateListener = object : DownloadItem.StateListener {
-            override fun onStarted() {}
-
-            override fun onCompleted() {
-                completedMain = true
-            }
-
-            override fun onDeleted() {
-                deletedMain = true
-            }
-        }
-
-        var deletedSecondary = false
-        testSecondaryItem.stateListener = object : DownloadItem.StateListener {
-            override fun onStarted() {}
-
-            override fun onCompleted() {}
-
-            override fun onDeleted() {
-                deletedSecondary = true
-            }
-        }
-
-        testDownloadItemWithSecondary.delete(activityTestRule.activity) {
-            assertFalse(it)
-
-            testDownloadItemWithSecondary.start(activityTestRule.activity) {
-                waitWhile({ !completedMain })
-
-                assertTrue(testDownloadItemWithSecondary.downloadExists)
-                assertTrue(testSecondaryItem.downloadExists)
-
-                testDownloadItemWithSecondary.delete(activityTestRule.activity) {
-                    assertTrue(it)
-
-                    assertTrue(deletedMain)
-                    assertTrue(deletedSecondary)
-                    assertFalse(testDownloadItemWithSecondary.downloadExists)
-                    assertFalse(testSecondaryItem.downloadExists)
-                    assertNull(testDownloadItemWithSecondary.download)
-                    assertNull(testSecondaryItem.download)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun testDeleteDownloadWithoutSecondary() {
-        var completedMain = false
-        var deletedMain = false
-        testDownloadItemWithSecondaryNotDeletingSecondary.stateListener =
-            object : DownloadItem.StateListener {
-                override fun onStarted() {}
-
-                override fun onCompleted() {
-                    completedMain = true
-                }
-
-                override fun onDeleted() {
-                    deletedMain = true
-                }
-            }
-
-        var deletedSecondary = false
-        testSecondaryItem.stateListener =
-            object : DownloadItem.StateListener {
-                override fun onStarted() {}
-
-                override fun onCompleted() {}
-
-                override fun onDeleted() {
-                    deletedSecondary = true
-                }
-            }
-
-        testDownloadItemWithSecondaryNotDeletingSecondary.start(activityTestRule.activity) {
-            assertNotNull(it)
-            waitWhile({ !completedMain })
-
-            testDownloadItemWithSecondaryNotDeletingSecondary.delete(activityTestRule.activity) {
-                assertTrue(it)
-
-                assertTrue(deletedMain)
-                assertFalse(deletedSecondary)
-                assertFalse(testDownloadItemWithSecondaryNotDeletingSecondary.downloadExists)
-                assertTrue(testSecondaryItem.downloadExists)
-                assertNull(testDownloadItemWithSecondaryNotDeletingSecondary.download)
-                assertNotNull(testSecondaryItem.download)
-            }
-        }
-    }*/
 }

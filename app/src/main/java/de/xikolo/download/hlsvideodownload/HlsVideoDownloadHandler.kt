@@ -38,6 +38,8 @@ import de.xikolo.utils.extensions.sdcardStorage
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.Executors
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * DownloadHandler class for ExoPlayer HLS video downloads.
@@ -132,9 +134,10 @@ object HlsVideoDownloadHandler :
                                     if (download.state == Download.STATE_COMPLETED &&
                                         args.showNotification
                                     ) {
-                                        NotificationUtil.getInstance(context).showDownloadCompletedNotification(
-                                            args.title
-                                        )
+                                        NotificationUtil.getInstance(context)
+                                            .showDownloadCompletedNotification(
+                                                args.title
+                                            )
                                     }
 
                                     startNotifierThread(downloadManager)
@@ -191,23 +194,41 @@ object HlsVideoDownloadHandler :
             object : DownloadHelper.Callback {
                 override fun onPrepared(helper: DownloadHelper) {
                     val manifest = helper.manifest as HlsManifest
-                    val formats = manifest.masterPlaylist.variants.map {
-                        it.format
-                    }
-                    val subtitles = manifest.masterPlaylist.subtitles.map {
-                        it.format.language
-                    }
+
+                    val bitrates = manifest.masterPlaylist.variants.map { it.format.bitrate }
+                    val lowestBitrate = bitrates.minOrNull() ?: 0
+                    val highestBitrate = bitrates.maxOrNull() ?: 0
+                    val targetBitrate = lowestBitrate + request.quality *
+                        (highestBitrate - lowestBitrate)
+                    val closestBitrate = bitrates
+                        .map {
+                            abs(it - targetBitrate).roundToInt()
+                        }
+                        .minOrNull()
+
+                    val subtitles = manifest.masterPlaylist.subtitles
+                        .mapNotNull {
+                            it.format.language
+                        }
+                        .toTypedArray()
+
                     helper.clearTrackSelections(0)
                     helper.addTrackSelection(
                         0,
                         DefaultTrackSelector.ParametersBuilder(context)
-                            .setForceHighestSupportedBitrate(true)
+                            .apply {
+                                if (closestBitrate != null) {
+                                    setMinVideoBitrate(closestBitrate - 1)
+                                    setMaxVideoBitrate(closestBitrate + 1)
+                                }
+                            }
                             .build()
                     )
                     helper.addTextLanguagesToSelection(
                         true,
-                        //*(subtitles?.keys?.toTypedArray() ?: arrayOf())
+                        *subtitles
                     )
+
                     val downloadRequest = helper.getDownloadRequest(
                         identify(request).get(),
                         ArgumentWrapper(
@@ -363,7 +384,7 @@ object HlsVideoDownloadHandler :
                 Download.STATE_COMPLETED -> DownloadStatus.State.DOWNLOADED
                 else -> DownloadStatus.State.DELETED
             },
-            if(download.state == Download.STATE_FAILED){
+            if (download.state == Download.STATE_FAILED) {
                 Exception("Download failed with reason ${download.failureReason}")
             } else null
         )

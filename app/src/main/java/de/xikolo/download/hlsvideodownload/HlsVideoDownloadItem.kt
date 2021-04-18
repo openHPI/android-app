@@ -16,7 +16,7 @@ import de.xikolo.utils.extensions.sdcardStorage
 open class HlsVideoDownloadItem(
     val url: String?,
     val category: DownloadCategory,
-    val quality: Int,
+    val quality: Float,
     //val subtitles: Map<String, String>?,
     storage: Storage = App.instance.preferredStorage
 ) : DownloadItemImpl<MediaSource, HlsVideoDownloadIdentifier, HlsVideoDownloadRequest>(storage) {
