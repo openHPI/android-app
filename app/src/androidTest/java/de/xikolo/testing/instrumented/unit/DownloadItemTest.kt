@@ -16,8 +16,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
-abstract class DownloadItemTest<T : DownloadItem<F, I>,
-    F, I : DownloadIdentifier> : BaseTest() {
+abstract class DownloadItemTest<T : DownloadItem<D, I>,
+    D, I : DownloadIdentifier> : BaseTest() {
 
     @Rule
     @JvmField
@@ -32,8 +32,20 @@ abstract class DownloadItemTest<T : DownloadItem<F, I>,
     abstract val testDownloadItemNotDownloadable: T
 
     @Before
-    fun deleteItem() {
-        testDownloadItem.delete(activityTestRule.activity)
+    fun deleteAllItems() {
+        fun deleteItem(item: DownloadItem<D, I>) {
+            var deleted = false
+            testDownloadItem.status.observeForever {
+                if(it.state == DownloadStatus.State.DELETED) {
+                    deleted = true
+                }
+            }
+            item.delete(activityTestRule.activity)
+            waitWhile({ !deleted }, 3000)
+        }
+
+        deleteItem(testDownloadItem)
+        deleteItem(testDownloadItemNotDownloadable)
     }
 
     @Test
@@ -101,8 +113,8 @@ abstract class DownloadItemTest<T : DownloadItem<F, I>,
             startResult = it
         }
 
-        waitWhile({!startResult}, 3000)
-        waitWhile({!downloaded})
+        waitWhile({ !startResult }, 3000)
+        waitWhile({ !downloaded })
         assertNotNull(testDownloadItem.download)
 
         var deleted = false
@@ -117,8 +129,8 @@ abstract class DownloadItemTest<T : DownloadItem<F, I>,
             deleteResult = it
         }
 
-        waitWhile({!deleteResult}, 3000)
-        waitWhile({!deleted})
+        waitWhile({ !deleteResult }, 3000)
+        waitWhile({ !deleted })
         assertNull(testDownloadItem.download)
     }
 

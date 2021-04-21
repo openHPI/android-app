@@ -46,7 +46,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
                 status = it
             }
             downloadHandler.delete(identifier)
-            waitWhile({ status?.state?.equals(DownloadStatus.State.DELETED) == false }, 3000)
+            waitWhile({ status?.state?.equals(DownloadStatus.State.DELETED) != true }, 3000)
             downloadHandler.listen(identifier, null)
         }
 
@@ -111,9 +111,9 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
         downloadHandler.download(successfulTestRequest)
         // wait for download to start
         waitWhile({
-            status?.state?.equals(DownloadStatus.State.DELETED) == true ||
-                (status?.state?.equals(DownloadStatus.State.PENDING) == false &&
-                    status?.state?.equals(DownloadStatus.State.RUNNING) == false)
+            status?.state?.equals(DownloadStatus.State.DELETED) != false ||
+                (status?.state?.equals(DownloadStatus.State.PENDING) != true &&
+                    status?.state?.equals(DownloadStatus.State.RUNNING) != true)
         }, 10000)
         assertNotNull(status!!.totalBytes)
         assertNotNull(status!!.downloadedBytes)
@@ -159,7 +159,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
         // start download
         downloadHandler.download(successfulTestRequest)
         // wait for download to finish
-        waitWhile({ status?.state?.equals(DownloadStatus.State.DOWNLOADED) == false })
+        waitWhile({ status?.state?.equals(DownloadStatus.State.DOWNLOADED) != true })
         assertNotNull(status!!.totalBytes)
         assertNotNull(status!!.downloadedBytes)
         assertEquals(status!!.totalBytes, status!!.downloadedBytes)
@@ -176,7 +176,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
         // start download
         downloadHandler.download(successfulTestRequest)
         // wait for download to finish
-        waitWhile({ status?.state?.equals(DownloadStatus.State.DOWNLOADED) == false })
+        waitWhile({ status?.state?.equals(DownloadStatus.State.DOWNLOADED) != true })
 
         var result = false
         downloadHandler.delete(identifier) {
@@ -198,7 +198,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
         // start download
         downloadHandler.download(successfulTestRequest)
         // wait for download to fail
-        waitWhile({ status?.state?.equals(DownloadStatus.State.DELETED) == false })
+        waitWhile({ status?.state?.equals(DownloadStatus.State.DELETED) != true })
     }
 
     @Test
@@ -217,9 +217,9 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
         }
         downloadHandler.download(successfulTestRequest)
         waitWhile({
-            status?.state?.equals(DownloadStatus.State.DELETED) == true ||
-                (status?.state?.equals(DownloadStatus.State.PENDING) == false &&
-                    status?.state?.equals(DownloadStatus.State.RUNNING) == false)
+            status?.state?.equals(DownloadStatus.State.DELETED) != false ||
+                (status?.state?.equals(DownloadStatus.State.PENDING) != true &&
+                    status?.state?.equals(DownloadStatus.State.RUNNING) != true)
         }, 10000)
 
         result = false
@@ -237,7 +237,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
             result = it
         }
         // wait for and check result
-        waitWhile({ result?.size?.equals(0) == false }, 1000)
+        waitWhile({ result?.size?.equals(0) != true }, 1000)
 
         var status: DownloadStatus? = null
         downloadHandler.listen(downloadHandler.identify(successfulTestRequest)) {
@@ -246,14 +246,14 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
         // start download
         downloadHandler.download(successfulTestRequest)
         // wait for download to finish
-        waitWhile({ status?.state?.equals(DownloadStatus.State.DOWNLOADED) == false })
+        waitWhile({ status?.state?.equals(DownloadStatus.State.DOWNLOADED) != true })
 
         result = null
         downloadHandler.getDownloads(context.preferredStorage) {
             result = it
         }
         // wait for result
-        waitWhile({ result?.size?.equals(1) == false }, 1000)
+        waitWhile({ result?.size?.equals(1) != true }, 1000)
     }
 
     @Test

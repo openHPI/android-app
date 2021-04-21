@@ -9,6 +9,7 @@ import de.xikolo.download.hlsvideodownload.HlsVideoDownloadItem
 import de.xikolo.testing.instrumented.mocking.SampleMockData
 import de.xikolo.utils.extensions.preferredStorage
 import org.junit.Assert.assertNotEquals
+import org.junit.Before
 import org.junit.Test
 
 class HlsVideoDownloadItemTest : DownloadItemTest<HlsVideoDownloadItem,
@@ -28,16 +29,27 @@ class HlsVideoDownloadItemTest : DownloadItemTest<HlsVideoDownloadItem,
         0.0f,
         storage
     )
+    private val testDownloadItemOtherQuality = HlsVideoDownloadItem(
+        SampleMockData.mockVideoStreamHlsUrl,
+        DownloadCategory.Other,
+        VideoSettingsHelper.VideoQuality.LOW.qualityFraction,
+        storage
+    )
+
+    @Before
+    fun deleteItem() {
+        var deleted = false
+        testDownloadItemOtherQuality.status.observe(activityTestRule.activity){
+            if(it.state == DownloadStatus.State.DELETED) {
+                deleted = true
+            }
+        }
+        testDownloadItemOtherQuality.delete(activityTestRule.activity)
+        waitWhile({ !deleted }, 3000)
+    }
 
     @Test
     fun testQualitySelection() {
-        val testDownloadItemOtherQuality = HlsVideoDownloadItem(
-            SampleMockData.mockVideoStreamHlsUrl,
-            DownloadCategory.Other,
-            VideoSettingsHelper.VideoQuality.LOW.qualityFraction,
-            storage
-        )
-
         assertNotEquals(testDownloadItem.identifier, testDownloadItemOtherQuality.identifier)
 
         var downloaded = false
