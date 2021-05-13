@@ -114,7 +114,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
             status?.state?.equals(DownloadStatus.State.DELETED) != false ||
                 (status?.state?.equals(DownloadStatus.State.PENDING) != true &&
                     status?.state?.equals(DownloadStatus.State.RUNNING) != true)
-        }, 10000)
+        }, 30000)
         assertNotNull(status!!.totalBytes)
         assertNotNull(status!!.downloadedBytes)
         if (status!!.totalBytes!! >= 0L) {
@@ -220,7 +220,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
             status?.state?.equals(DownloadStatus.State.DELETED) != false ||
                 (status?.state?.equals(DownloadStatus.State.PENDING) != true &&
                     status?.state?.equals(DownloadStatus.State.RUNNING) != true)
-        }, 10000)
+        }, 30000)
 
         result = false
         downloadHandler.isDownloadingAnything {
@@ -267,7 +267,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
             result2 = it
         }
         // wait for `result` and `result2` to become true
-        waitWhile({ !result || !result2 }, 3000)
+        waitWhile({ !result || !result2 }, 10000)
     }
 
     protected fun waitWhile(condition: () -> Boolean, timeout: Long = 300000) {

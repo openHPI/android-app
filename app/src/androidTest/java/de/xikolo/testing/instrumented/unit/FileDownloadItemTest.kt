@@ -1,10 +1,10 @@
 package de.xikolo.testing.instrumented.unit
 
+import androidx.test.annotation.UiThreadTest
 import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadStatus
 import de.xikolo.download.filedownload.FileDownloadIdentifier
 import de.xikolo.download.filedownload.FileDownloadItem
-import de.xikolo.testing.instrumented.mocking.SampleMockData
 import de.xikolo.utils.extensions.preferredStorage
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -17,7 +17,7 @@ class FileDownloadItemTest : DownloadItemTest<FileDownloadItem,
     private val storage = context.preferredStorage
 
     override val testDownloadItem = FileDownloadItem(
-        SampleMockData.mockVideoStreamSdUrl,
+        "https://file-examples-com.github.io/uploads/2017/04/file_example_MP4_1280_10MG.mp4",
         DownloadCategory.Other,
         "sdvideo.mp4",
         storage
@@ -29,6 +29,7 @@ class FileDownloadItemTest : DownloadItemTest<FileDownloadItem,
     )
 
     @Test
+    @UiThreadTest
     fun testFileName() {
         testDownloadItem.fileName
         testDownloadItemNotDownloadable.fileName

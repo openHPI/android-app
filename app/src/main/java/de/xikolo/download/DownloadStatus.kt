@@ -69,7 +69,7 @@ data class DownloadStatus(
     ) : LiveData<DownloadStatus>() {
 
         public override fun setValue(value: DownloadStatus) {
-            super.setValue(value)
+            super.postValue(value)
         }
 
         override fun getValue(): DownloadStatus {
@@ -101,7 +101,7 @@ data class DownloadStatus(
             }
 
         init {
-            super.setValue(DownloadStatus(totalBytes, downloadedBytes, state, error))
+            super.postValue(DownloadStatus(totalBytes, downloadedBytes, state, error))
         }
     }
 }

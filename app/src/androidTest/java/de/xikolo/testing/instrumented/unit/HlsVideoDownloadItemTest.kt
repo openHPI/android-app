@@ -6,7 +6,6 @@ import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadStatus
 import de.xikolo.download.hlsvideodownload.HlsVideoDownloadIdentifier
 import de.xikolo.download.hlsvideodownload.HlsVideoDownloadItem
-import de.xikolo.testing.instrumented.mocking.SampleMockData
 import de.xikolo.utils.extensions.preferredStorage
 import org.junit.Assert.assertNotEquals
 import org.junit.Before
@@ -18,7 +17,7 @@ class HlsVideoDownloadItemTest : DownloadItemTest<HlsVideoDownloadItem,
     private val storage = context.preferredStorage
 
     override val testDownloadItem = HlsVideoDownloadItem(
-        SampleMockData.mockVideoStreamHlsUrl,
+        "https://open.hpi.de/playlists/93a84211-e40a-416a-b224-4d3ecdbb12f9.m3u8?embed_subtitles_for_video=d7e056da-756f-4437-b64a-16970a33d5ef",
         DownloadCategory.Other,
         VideoSettingsHelper.VideoQuality.HIGH.qualityFraction,
         storage
@@ -30,7 +29,7 @@ class HlsVideoDownloadItemTest : DownloadItemTest<HlsVideoDownloadItem,
         storage
     )
     private val testDownloadItemOtherQuality = HlsVideoDownloadItem(
-        SampleMockData.mockVideoStreamHlsUrl,
+        "https://open.hpi.de/playlists/93a84211-e40a-416a-b224-4d3ecdbb12f9.m3u8?embed_subtitles_for_video=d7e056da-756f-4437-b64a-16970a33d5ef",
         DownloadCategory.Other,
         VideoSettingsHelper.VideoQuality.LOW.qualityFraction,
         storage
@@ -39,9 +38,11 @@ class HlsVideoDownloadItemTest : DownloadItemTest<HlsVideoDownloadItem,
     @Before
     fun deleteItem() {
         var deleted = false
-        testDownloadItemOtherQuality.status.observe(activityTestRule.activity){
-            if(it.state == DownloadStatus.State.DELETED) {
-                deleted = true
+        activityTestRule.activity.runOnUiThread {
+            testDownloadItemOtherQuality.status.observe(activityTestRule.activity) {
+                if (it.state == DownloadStatus.State.DELETED) {
+                    deleted = true
+                }
             }
         }
         testDownloadItemOtherQuality.delete(activityTestRule.activity)

@@ -4,7 +4,6 @@ import de.xikolo.download.DownloadCategory
 import de.xikolo.download.filedownload.FileDownloadHandler
 import de.xikolo.download.filedownload.FileDownloadIdentifier
 import de.xikolo.download.filedownload.FileDownloadRequest
-import de.xikolo.testing.instrumented.mocking.SampleMockData
 import de.xikolo.utils.extensions.preferredStorage
 import io.mockk.every
 import io.mockk.spyk
@@ -17,14 +16,14 @@ class FileDownloadHandlerTest : DownloadHandlerTest<FileDownloadHandler,
     }
 
     override var successfulTestRequest = FileDownloadRequest(
-        SampleMockData.mockVideoStreamSdUrl,
+        "https://file-examples-com.github.io/uploads/2017/04/file_example_MP4_1280_10MG.mp4",
         createTempFile(directory = context.preferredStorage.file),
         "File 1",
         true,
         DownloadCategory.Other
     )
     override var successfulTestRequest2 = FileDownloadRequest(
-        SampleMockData.mockVideoStreamThumbnailUrl,
+        "https://file-examples-com.github.io/uploads/2017/10/file-example_PDF_1MB.pdf",
         createTempFile(directory = context.preferredStorage.file),
         "File 2",
         true,

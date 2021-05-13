@@ -35,9 +35,11 @@ abstract class DownloadItemTest<T : DownloadItem<D, I>,
     fun deleteAllItems() {
         fun deleteItem(item: DownloadItem<D, I>) {
             var deleted = false
-            testDownloadItem.status.observeForever {
-                if(it.state == DownloadStatus.State.DELETED) {
-                    deleted = true
+            activityTestRule.activity.runOnUiThread {
+                item.status.observeForever {
+                    if (it.state == DownloadStatus.State.DELETED) {
+                        deleted = true
+                    }
                 }
             }
             item.delete(activityTestRule.activity)
@@ -45,7 +47,6 @@ abstract class DownloadItemTest<T : DownloadItem<D, I>,
         }
 
         deleteItem(testDownloadItem)
-        deleteItem(testDownloadItemNotDownloadable)
     }
 
     @Test

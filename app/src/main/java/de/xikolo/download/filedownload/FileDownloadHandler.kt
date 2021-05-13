@@ -316,12 +316,18 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
         listener: ((DownloadStatus) -> Unit)?
     ) {
         listeners[identifier.get()] = listener
+
+        var called = false
         disabledNotificationsManager.getDownload(identifier.get()) { a ->
             enabledNotificationsManager.getDownload(identifier.get()) { b ->
                 listener?.invoke(
                     getDownloadStatus(a ?: b)
                 )
+                called = true
             }
+        }
+        while (!called) {
+            Thread.sleep(100)
         }
     }
 
