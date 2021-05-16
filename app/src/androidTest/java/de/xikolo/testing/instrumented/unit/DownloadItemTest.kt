@@ -1,52 +1,45 @@
 package de.xikolo.testing.instrumented.unit
 
-import android.Manifest
-import androidx.test.rule.ActivityTestRule
-import androidx.test.rule.GrantPermissionRule
-import de.xikolo.controllers.main.MainActivity
 import de.xikolo.download.DownloadIdentifier
 import de.xikolo.download.DownloadItem
 import de.xikolo.download.DownloadStatus
-import de.xikolo.testing.instrumented.mocking.base.BaseTest
+import de.xikolo.extensions.observe
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 
 abstract class DownloadItemTest<T : DownloadItem<D, I>,
-    D, I : DownloadIdentifier> : BaseTest() {
-
-    @Rule
-    @JvmField
-    var activityTestRule =
-        ActivityTestRule(MainActivity::class.java, false, true)
-
-    @Rule
-    @JvmField
-    var permissionRule = GrantPermissionRule.grant(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    D, I : DownloadIdentifier> : BaseDownloadTest() {
 
     abstract val testDownloadItem: T
     abstract val testDownloadItemNotDownloadable: T
 
-    @Before
-    fun deleteAllItems() {
-        fun deleteItem(item: DownloadItem<D, I>) {
-            var deleted = false
-            activityTestRule.activity.runOnUiThread {
-                item.status.observeForever {
-                    if (it.state == DownloadStatus.State.DELETED) {
-                        deleted = true
-                    }
+    protected fun onUi(action: () -> Unit) {
+        activityTestRule.activity.runOnUiThread(action)
+    }
+
+    protected fun deleteItem(item: DownloadItem<D, I>) {
+        var deleted = false
+        var deleteCallbackCalled = false
+        onUi {
+            item.status.observe(activityTestRule.activity) {
+                if (it.state == DownloadStatus.State.DELETED) {
+                    deleted = true
                 }
             }
-            item.delete(activityTestRule.activity)
-            waitWhile({ !deleted }, 3000)
+            item.delete(activityTestRule.activity) {
+                deleteCallbackCalled = true
+            }
         }
+        waitWhile({ !deleted || !deleteCallbackCalled }, 3000)
+    }
 
-        deleteItem(testDownloadItem)
+    @Before
+    fun deleteAllItems() {
+        //deleteItem(testDownloadItem)
     }
 
     @Test
@@ -92,17 +85,19 @@ abstract class DownloadItemTest<T : DownloadItem<D, I>,
 
     @Test
     fun testStatusBefore() {
-        testDownloadItem.status.observe(activityTestRule.activity){
-            assertNotNull(it)
-            assertNull(testDownloadItem.download)
+        onUi {
+            testDownloadItem.status.observe(activityTestRule.activity) {
+                assertNotNull(it)
+                assertNull(testDownloadItem.download)
+            }
         }
     }
 
     @Test
     fun testDownloadAndDelete() {
         var downloaded = false
-        testDownloadItem.status.observe(activityTestRule.activity){
-            if(it.state == DownloadStatus.State.DOWNLOADED) {
+        testDownloadItem.status.observe(activityTestRule.activity) {
+            if (it.state == DownloadStatus.State.DOWNLOADED) {
                 downloaded = true
             }
         }
@@ -110,7 +105,7 @@ abstract class DownloadItemTest<T : DownloadItem<D, I>,
         assertNull(testDownloadItem.download)
 
         var startResult = false
-        testDownloadItem.start(activityTestRule.activity){
+        testDownloadItem.start(activityTestRule.activity) {
             startResult = it
         }
 
@@ -119,14 +114,14 @@ abstract class DownloadItemTest<T : DownloadItem<D, I>,
         assertNotNull(testDownloadItem.download)
 
         var deleted = false
-        testDownloadItem.status.observe(activityTestRule.activity){
-            if(it.state == DownloadStatus.State.DELETED) {
+        testDownloadItem.status.observe(activityTestRule.activity) {
+            if (it.state == DownloadStatus.State.DELETED) {
                 deleted = true
             }
         }
 
         var deleteResult = false
-        testDownloadItem.delete(activityTestRule.activity){
+        testDownloadItem.delete(activityTestRule.activity) {
             deleteResult = it
         }
 

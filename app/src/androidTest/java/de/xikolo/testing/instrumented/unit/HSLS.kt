@@ -2,14 +2,17 @@ package de.xikolo.testing.instrumented.unit
 
 import de.xikolo.controllers.helper.VideoSettingsHelper
 import de.xikolo.download.DownloadCategory
+import de.xikolo.download.DownloadStatus
 import de.xikolo.download.hlsvideodownload.HlsVideoDownloadHandler
 import de.xikolo.download.hlsvideodownload.HlsVideoDownloadIdentifier
 import de.xikolo.download.hlsvideodownload.HlsVideoDownloadRequest
 import de.xikolo.utils.extensions.preferredStorage
 import io.mockk.every
 import io.mockk.spyk
+import org.junit.Assert
+import org.junit.Test
 
-class HlsVideoDownloadHandlerTest : DownloadHandlerTest<HlsVideoDownloadHandler,
+class HSLS : DownloadHandlerTest<HlsVideoDownloadHandler,
     HlsVideoDownloadIdentifier, HlsVideoDownloadRequest>() {
 
     override var downloadHandler = spyk(HlsVideoDownloadHandler, recordPrivateCalls = true) {
@@ -40,4 +43,37 @@ class HlsVideoDownloadHandlerTest : DownloadHandlerTest<HlsVideoDownloadHandler,
         true,
         DownloadCategory.Other
     )
+
+    @Test
+    fun testQualitySelection() {
+        val identifier1 = downloadHandler.identify(successfulTestRequest)
+        val identifier2 = downloadHandler.identify(successfulTestRequest2)
+
+        Assert.assertNotEquals(identifier1, identifier2)
+
+        var status1: DownloadStatus? = null
+        downloadHandler.listen(identifier1) {
+            status1 = it
+        }
+        var status2: DownloadStatus? = null
+        downloadHandler.listen(identifier2) {
+            status2 = it
+        }
+
+        // start downloads
+        downloadHandler.download(successfulTestRequest)
+        downloadHandler.download(successfulTestRequest2)
+
+        // wait for download to finish
+        waitWhile({
+            status1?.state?.equals(DownloadStatus.State.DOWNLOADED) != true ||
+                status2?.state?.equals(DownloadStatus.State.DOWNLOADED) != true
+        })
+
+        // test status after end
+        Assert.assertNotEquals(
+            status1?.downloadedBytes,
+            status2?.downloadedBytes
+        )
+    }
 }
