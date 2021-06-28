@@ -1,49 +1,38 @@
-package de.xikolo.testing.instrumented.unit
+package de.xikolo.testing.instrumented.unit.download.filedownload
 
-import androidx.test.annotation.UiThreadTest
 import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadStatus
-import de.xikolo.download.filedownload.FileDownloadHandler
 import de.xikolo.download.filedownload.FileDownloadIdentifier
 import de.xikolo.download.filedownload.FileDownloadItem
-import de.xikolo.utils.extensions.preferredStorage
-import io.mockk.every
-import io.mockk.spyk
+import de.xikolo.models.Storage
+import de.xikolo.testing.instrumented.unit.download.DownloadItemTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-class FileDownloadItemTest : DownloadItemTest<FileDownloadItem,
+abstract class AbstractFileDownloadItemTest : DownloadItemTest<FileDownloadItem,
     File, FileDownloadIdentifier>() {
 
-    private val storage = context.preferredStorage
+    abstract val storage: Storage
 
-    override val testDownloadItem = spyk(
-        FileDownloadItem(
+    override val testDownloadItem
+        get() = FileDownloadItem(
             "https://file-examples-com.github.io/uploads/2017/04/file_example_MP4_1280_10MG.mp4",
             DownloadCategory.Other,
             "video.mp4",
             storage
         )
-    )
-    override val testDownloadItemNotDownloadable = spyk(
-        FileDownloadItem(
+
+    override val testDownloadItemNotDownloadable
+        get() = FileDownloadItem(
             null,
             DownloadCategory.Other,
-            "null.null"
+            "null.null",
+            storage
         )
-    )
-
-    init {
-        every { testDownloadItem.downloader } returns spyk(FileDownloadHandler, recordPrivateCalls = true) {
-            every { this@spyk getProperty "context" } answers { context }
-        }
-        every { testDownloadItemNotDownloadable.downloader } returns FileDownloadHandlerTest().downloadHandler
-    }
 
     @Test
-    @UiThreadTest
     fun testFileName() {
         testDownloadItem.fileName
         testDownloadItemNotDownloadable.fileName
@@ -53,13 +42,12 @@ class FileDownloadItemTest : DownloadItemTest<FileDownloadItem,
     fun testFileHandling() {
         var downloaded = false
         var downloadCallbackCalled = false
-        onUi {
+        onUiThread {
             testDownloadItem.status.observe(activityTestRule.activity) {
                 if (it.state == DownloadStatus.State.DOWNLOADED) {
                     downloaded = true
                 }
             }
-
             testDownloadItem.start(activityTestRule.activity) {
                 downloadCallbackCalled = true
             }
@@ -89,13 +77,12 @@ class FileDownloadItemTest : DownloadItemTest<FileDownloadItem,
         )
 
         var deleted = false
-        onUi {
+        onUiThread {
             testDownloadItem.status.observe(activityTestRule.activity) {
                 if (it.state == DownloadStatus.State.DELETED) {
                     deleted = true
                 }
             }
-
             testDownloadItem.delete(activityTestRule.activity)
         }
 

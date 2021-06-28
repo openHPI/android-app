@@ -56,7 +56,7 @@ interface DownloadHandler<I : DownloadIdentifier, R : DownloadRequest> {
     /**
      * Registers a listener for a download that notifies when the download status changes.
      * Overrides the previous listener.
-     * The listener is always invoked immediately after registering it.
+     * The listener is set immediately, but the callback might get called with a delay.
      *
      * @param identifier The identifier of the download.
      * @param listener An asynchronous callback that is invoked regularly with the most recent

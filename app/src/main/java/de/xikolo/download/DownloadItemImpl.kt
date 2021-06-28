@@ -106,9 +106,9 @@ abstract class DownloadItemImpl<out D, I : DownloadIdentifier, R : DownloadReque
         performAction(activity) {
             val existed = status.state == DownloadStatus.State.DOWNLOADED
             downloader.delete(identifier) {
-                if (it) {
+                /*if (it) {
                     status.state = DownloadStatus.State.DELETED
-                }
+                }*/
                 callback?.invoke(it && existed)
             }
         }

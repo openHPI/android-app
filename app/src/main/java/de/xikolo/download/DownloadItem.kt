@@ -40,6 +40,7 @@ interface DownloadItem<out D, I : DownloadIdentifier> {
 
     /**
      * Total size of the download.
+     * Returns 0 per default if the download size cannot be determined.
      */
     val size: Long
 

@@ -27,7 +27,7 @@ open class HlsVideoDownloadItem(
         get() = url != null
 
     override val title: String
-        get() = url!!
+        get() = url ?: ""
 
     private val cache: Cache
         get() = if (storage == context.sdcardStorage) {
@@ -48,7 +48,11 @@ open class HlsVideoDownloadItem(
         ).createMediaSource(request.mediaItem)
 
     override val size: Long
-        get() = indexEntry?.bytesDownloaded ?: 0L
+        get() = try {
+            indexEntry!!.bytesDownloaded
+        } catch (e: Exception) {
+            0L
+        }
 
     final override val download: MediaSource?
         get() {

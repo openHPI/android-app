@@ -1,11 +1,10 @@
-package de.xikolo.testing.instrumented.unit
+package de.xikolo.testing.instrumented.unit.download
 
-import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadHandler
 import de.xikolo.download.DownloadIdentifier
 import de.xikolo.download.DownloadRequest
 import de.xikolo.download.DownloadStatus
-import de.xikolo.utils.extensions.preferredStorage
+import de.xikolo.models.Storage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -16,11 +15,12 @@ import org.junit.Test
 abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
     I : DownloadIdentifier, R : DownloadRequest> : BaseDownloadTest() {
 
-    abstract var downloadHandler: T
+    abstract val downloadHandler: T
 
-    abstract var successfulTestRequest: R
-    abstract var successfulTestRequest2: R
-    abstract var failingTestRequest: R
+    abstract val successfulTestRequest: R
+    abstract val successfulTestRequest2: R
+    abstract val failingTestRequest: R
+    abstract val storage: Storage
 
     @Before
     fun deleteAllDownloads() {
@@ -56,7 +56,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
         downloadHandler.listen(identifier) {
             listenerCalled = true
         }
-        assertTrue(listenerCalled)
+        waitWhile({ !listenerCalled }, 3000)
 
         // reset `listenerCalled` to false
         listenerCalled = false
@@ -95,7 +95,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
             status?.state?.equals(DownloadStatus.State.DELETED) != false ||
                 (status?.state?.equals(DownloadStatus.State.PENDING) != true &&
                     status?.state?.equals(DownloadStatus.State.RUNNING) != true)
-        }, 30000)
+        })
 
         // test status after start
         assertNotNull(status!!.totalBytes)
@@ -111,7 +111,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
             isDownloadingAnythingCallbackCalled = it
         }
         // assert that isDownloadingAnything returns true
-        waitWhile({ !isDownloadingAnythingCallbackCalled }, 1000)
+        waitWhile({ !isDownloadingAnythingCallbackCalled }, 3000)
 
         // wait for download to finish
         waitWhile({ status?.state?.equals(DownloadStatus.State.DOWNLOADED) != true })
@@ -151,7 +151,7 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
 
         // assert that the delete callback has been called
         waitWhile({ !deleteCallbackCalled }, 3000)
-        waitWhile({ status!!.state != DownloadStatus.State.DELETED }, 3000)
+        waitWhile({ status?.state?.equals(DownloadStatus.State.DELETED) != true }, 3000)
     }
 
     @Test
@@ -170,28 +170,32 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
 
     @Test
     fun testGettingDownloads() {
-        var result: Map<I, Pair<DownloadStatus, DownloadCategory>>? = null
-        downloadHandler.getDownloads(context.preferredStorage) {
-            result = it
+        var count: Int? = null
+        downloadHandler.getDownloads(storage) {
+            count = it.size
         }
         // wait for and check result
-        waitWhile({ result?.size?.equals(0) != true }, 1000)
+        waitWhile({ count == null }, 1000)
 
-        var status: DownloadStatus? = null
+        var downloaded = false
         downloadHandler.listen(downloadHandler.identify(successfulTestRequest)) {
-            status = it
+            if(it.state == DownloadStatus.State.DOWNLOADED){
+                downloaded = true
+            }
         }
         // start download
         downloadHandler.download(successfulTestRequest)
         // wait for download to finish
-        waitWhile({ status?.state?.equals(DownloadStatus.State.DOWNLOADED) != true })
+        waitWhile({ !downloaded })
 
-        result = null
-        downloadHandler.getDownloads(context.preferredStorage) {
-            result = it
+        var nextCount: Int? = null
+        downloadHandler.getDownloads(storage) {
+            nextCount = it.size
         }
         // wait for result
-        waitWhile({ result?.size?.equals(1) != true }, 1000)
+        waitWhile({ nextCount == null }, 1000)
+
+        assertEquals(count!! + 1, nextCount);
     }
 
     @Test
@@ -205,10 +209,10 @@ abstract class DownloadHandlerTest<T : DownloadHandler<I, R>,
             result2 = it
         }
         // wait for `result` and `result2` to become true
-        waitWhile({ !result || !result2 }, 30000)
+        waitWhile({ !result || !result2 })
     }
 
-    protected fun waitWhile(condition: () -> Boolean, timeout: Long = 300000) {
+    protected fun waitWhile(condition: () -> Boolean, timeout: Long = 60000) {
         var waited = 0
         while (condition()) {
             Thread.sleep(100)

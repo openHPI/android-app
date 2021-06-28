@@ -2,6 +2,9 @@ package de.xikolo.download.filedownload
 
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import com.google.gson.Gson
@@ -28,7 +31,6 @@ import de.xikolo.models.Storage
 import de.xikolo.storages.ApplicationPreferences
 import de.xikolo.utils.NotificationUtil
 import de.xikolo.utils.extensions.createIfNotExists
-import java.io.File
 import java.util.Locale
 
 /**
@@ -43,6 +45,8 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
 
     private val context: Context
         get() = App.instance
+
+    private val handler: Handler
 
     private val disabledNotificationsConfiguration =
         FetchConfiguration.Builder(context)
@@ -146,6 +150,10 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
     )
 
     init {
+        val thread = HandlerThread(FileDownloadHandler::class.simpleName)
+        thread.start()
+        handler = Handler(thread.looper)
+
         val listener = object : FetchListener {
             override fun onAdded(download: Download) {
                 notifyStatus(download)
@@ -213,16 +221,24 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
             override fun onWaitingNetwork(download: Download) {}
         }
 
-        disabledNotificationsManager.addListener(listener)
-        enabledNotificationsManager.addListener(listener)
+        handler.post {
+            disabledNotificationsManager.addListener(listener)
+            enabledNotificationsManager.addListener(listener)
+        }
     }
 
     private val listeners: MutableMap<Int, ((DownloadStatus) -> Unit)?> = mutableMapOf()
 
     override fun isDownloadingAnything(callback: (Boolean) -> Unit) {
-        disabledNotificationsManager.hasActiveDownloads(true) { a ->
-            enabledNotificationsManager.hasActiveDownloads(true) { b ->
-                callback(a || b)
+        val mainHandler = Handler(Looper.getMainLooper())
+
+        handler.post {
+            disabledNotificationsManager.hasActiveDownloads(true) { a ->
+                enabledNotificationsManager.hasActiveDownloads(true) { b ->
+                    mainHandler.post {
+                        callback(a || b)
+                    }
+                }
             }
         }
     }
@@ -232,6 +248,8 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
     }
 
     override fun download(request: FileDownloadRequest, callback: ((Boolean) -> Unit)?) {
+        val mainHandler = Handler(Looper.getMainLooper())
+
         val req = Request(request.url, request.localFile.toUri()).apply {
             networkType =
                 if (ApplicationPreferences().isDownloadNetworkLimitedOnMobile) {
@@ -272,39 +290,55 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
             }
         }
 
-        File(req.file).parentFile?.createIfNotExists()
+        request.localFile.parentFile?.createIfNotExists()
 
-        if (req.extras.getBoolean(REQUEST_EXTRA_SHOW_NOTIFICATION, true)) {
-            enabledNotificationsManager
-        } else {
-            disabledNotificationsManager
-        }.enqueue(
-            req,
-            {
-                callback?.invoke(true)
-            },
-            {
-                callback?.invoke(false)
-            }
-        )
+        handler.post {
+            if (req.extras.getBoolean(REQUEST_EXTRA_SHOW_NOTIFICATION, true)) {
+                enabledNotificationsManager
+            } else {
+                disabledNotificationsManager
+            }.enqueue(
+                req,
+                {
+                    mainHandler.post {
+                        callback?.invoke(true)
+                    }
+                },
+                {
+                    mainHandler.post {
+                        callback?.invoke(false)
+                    }
+                }
+            )
+        }
     }
 
     override fun delete(identifier: FileDownloadIdentifier, callback: ((Boolean) -> Unit)?) {
-        enabledNotificationsManager.getDownload(identifier.get()) { d1 ->
-            if (d1 != null) {
-                enabledNotificationsManager.cancel(d1.id)
-                enabledNotificationsManager.delete(d1.id)
-                enabledNotificationsManager.remove(d1.id)
-                callback?.invoke(true)
-            } else {
-                disabledNotificationsManager.getDownload(identifier.get()) { d2 ->
-                    if (d2 != null) {
-                        disabledNotificationsManager.cancel(d2.id)
-                        disabledNotificationsManager.delete(d2.id)
-                        disabledNotificationsManager.remove(d2.id)
+        val mainHandler = Handler(Looper.getMainLooper())
+
+        handler.post {
+            enabledNotificationsManager.getDownload(identifier.get()) { d1 ->
+                if (d1 != null) {
+                    enabledNotificationsManager.cancel(d1.id)
+                    enabledNotificationsManager.delete(d1.id)
+                    enabledNotificationsManager.remove(d1.id)
+                    mainHandler.post {
                         callback?.invoke(true)
-                    } else {
-                        callback?.invoke(false)
+                    }
+                } else {
+                    disabledNotificationsManager.getDownload(identifier.get()) { d2 ->
+                        if (d2 != null) {
+                            disabledNotificationsManager.cancel(d2.id)
+                            disabledNotificationsManager.delete(d2.id)
+                            disabledNotificationsManager.remove(d2.id)
+                            mainHandler.post {
+                                callback?.invoke(true)
+                            }
+                        } else {
+                            mainHandler.post {
+                                callback?.invoke(false)
+                            }
+                        }
                     }
                 }
             }
@@ -315,19 +349,20 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
         identifier: FileDownloadIdentifier,
         listener: ((DownloadStatus) -> Unit)?
     ) {
+        val mainHandler = Handler(Looper.getMainLooper())
+
         listeners[identifier.get()] = listener
 
-        var called = false
-        disabledNotificationsManager.getDownload(identifier.get()) { a ->
-            enabledNotificationsManager.getDownload(identifier.get()) { b ->
-                listener?.invoke(
-                    getDownloadStatus(a ?: b)
-                )
-                called = true
+        handler.post {
+            disabledNotificationsManager.getDownload(identifier.get()) { a ->
+                enabledNotificationsManager.getDownload(identifier.get()) { b ->
+                    mainHandler.post {
+                        listener?.invoke(
+                            getDownloadStatus(a ?: b)
+                        )
+                    }
+                }
             }
-        }
-        while (!called) {
-            Thread.sleep(100)
         }
     }
 
@@ -335,38 +370,30 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
         storage: Storage,
         callback: (Map<FileDownloadIdentifier, Pair<DownloadStatus, DownloadCategory>>) -> Unit
     ) {
-        disabledNotificationsManager.getDownloads { a ->
-            enabledNotificationsManager.getDownloads { b ->
-                callback.invoke(
-                    a
-                        .filter { it.file.contains(storage.file.absolutePath) }
-                        .associate {
-                            Pair(
-                                FileDownloadIdentifier(it.id),
-                                getDownloadStatus(it) to Gson().fromJson(
-                                    it.extras.getString(
-                                        REQUEST_EXTRA_CATEGORY,
-                                        ""
-                                    ),
-                                    DownloadCategory::class.java
-                                )
-                            )
-                        } +
-                        b
-                            .filter { it.file.contains(storage.file.absolutePath) }
-                            .associate {
-                                Pair(
-                                    FileDownloadIdentifier(it.id),
-                                    getDownloadStatus(it) to Gson().fromJson(
-                                        it.extras.getString(
-                                            REQUEST_EXTRA_CATEGORY,
-                                            ""
-                                        ),
-                                        DownloadCategory::class.java
+        val mainHandler = Handler(Looper.getMainLooper())
+
+        handler.post {
+            disabledNotificationsManager.getDownloadsWithStatus(Status.COMPLETED) { a ->
+                enabledNotificationsManager.getDownloadsWithStatus(Status.COMPLETED) { b ->
+                    mainHandler.post {
+                        callback.invoke(
+                            (a + b)
+                                .filter { it.file.contains(storage.file.absolutePath) }
+                                .associate {
+                                    Pair(
+                                        FileDownloadIdentifier(it.id),
+                                        getDownloadStatus(it) to Gson().fromJson(
+                                            it.extras.getString(
+                                                REQUEST_EXTRA_CATEGORY,
+                                                ""
+                                            ),
+                                            DownloadCategory::class.java
+                                        )
                                     )
-                                )
-                            }
-                )
+                                }
+                        )
+                    }
+                }
             }
         }
     }

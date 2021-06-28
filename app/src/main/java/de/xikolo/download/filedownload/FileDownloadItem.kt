@@ -6,7 +6,6 @@ import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadItemImpl
 import de.xikolo.download.DownloadStatus
 import de.xikolo.models.Storage
-import de.xikolo.utils.extensions.fileSize
 import de.xikolo.utils.extensions.internalStorage
 import de.xikolo.utils.extensions.open
 import de.xikolo.utils.extensions.preferredStorage
@@ -37,7 +36,7 @@ open class FileDownloadItem(
         get() = fileName
 
     override val size: Long
-        get() = download?.fileSize ?: 0L
+        get() = download?.length() ?: 0L
 
     final override val download: File?
         get() {
@@ -78,7 +77,6 @@ open class FileDownloadItem(
         )
 
     override fun onStatusChanged(newStatus: DownloadStatus) {
-        super.onStatusChanged(newStatus)
         when (newStatus.state) {
             DownloadStatus.State.DOWNLOADED -> {
                 File("$filePath.tmp").renameTo(File(filePath))
@@ -87,6 +85,7 @@ open class FileDownloadItem(
                 File(filePath).delete()
             }
         }
+        super.onStatusChanged(newStatus)
     }
 
     /**

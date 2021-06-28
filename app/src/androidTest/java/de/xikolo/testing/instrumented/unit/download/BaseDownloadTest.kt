@@ -1,4 +1,4 @@
-package de.xikolo.testing.instrumented.unit
+package de.xikolo.testing.instrumented.unit.download
 
 import android.Manifest
 import androidx.test.rule.ActivityTestRule
@@ -7,6 +7,8 @@ import de.xikolo.controllers.downloads.DownloadsActivity
 import de.xikolo.testing.instrumented.mocking.base.BaseTest
 import org.junit.Rule
 
+// Parallel test execution needs to be disabled for all downloading tests, because it can occur
+// that @Before deleteAllDownloads is called while another test is still being executed.
 abstract class BaseDownloadTest : BaseTest() {
 
     @Rule
