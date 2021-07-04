@@ -1,9 +1,5 @@
 package de.xikolo.download.hlsvideodownload
 
-import android.net.Uri
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.offline.StreamKey
-import com.google.android.exoplayer2.source.hls.playlist.HlsMasterPlaylist
 import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadRequest
 import de.xikolo.models.Storage
@@ -32,26 +28,4 @@ class HlsVideoDownloadRequest(
     override val title: String,
     override val showNotification: Boolean,
     override val category: DownloadCategory
-) : DownloadRequest {
-
-    val mediaItem = MediaItem.Builder()
-        .setUri(Uri.parse(url))
-        /*.setSubtitles(
-            subtitles?.map {
-                MediaItem.Subtitle(
-                    Uri.parse(it.value),
-                    MimeTypes.TEXT_VTT,
-                    it.key,
-                    C.SELECTION_FLAG_DEFAULT
-                )
-            }
-        )*/
-        .setStreamKeys(
-            listOf(
-                StreamKey(HlsMasterPlaylist.GROUP_INDEX_VARIANT, 1),
-                StreamKey(HlsMasterPlaylist.GROUP_INDEX_AUDIO, 1),
-                StreamKey(HlsMasterPlaylist.GROUP_INDEX_SUBTITLE, 1)
-            )
-        )
-        .build()
-}
+) : DownloadRequest

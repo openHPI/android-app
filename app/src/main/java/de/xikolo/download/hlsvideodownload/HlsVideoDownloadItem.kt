@@ -29,50 +29,40 @@ open class HlsVideoDownloadItem(
     override val title: String
         get() = url ?: ""
 
-    private val cache: Cache
-        get() = if (storage == context.sdcardStorage) {
+    private fun getCache(storage: Storage): Cache {
+        return if (storage == context.sdcardStorage) {
             HlsVideoDownloadHandler.getSdcardStorageCache(context)!!
         } else {
             HlsVideoDownloadHandler.getInternalStorageCache(context)
         }
+    }
 
-    private val indexEntry: Download?
-        get() = HlsVideoDownloadHandler.getManager(context, cache)
+    private fun getIndexEntry(storage: Storage): Download? {
+        return HlsVideoDownloadHandler.getManager(context, getCache(storage))
             .downloadIndex
-            .getDownload(identifier.get())
+            .getDownload(
+                identifier.get()
+            )
+    }
 
-    private val mediaSource: MediaSource
-        get() = HlsMediaSource.Factory(
-            CacheDataSource.Factory()
-                .setCache(cache)
-        ).createMediaSource(request.mediaItem)
+    private fun getMediaSource(storage: Storage): MediaSource? {
+        return getIndexEntry(storage)?.let {
+            return HlsMediaSource.Factory(
+                CacheDataSource.Factory()
+                    .setCache(getCache(storage))
+                    .setCacheWriteDataSinkFactory(null)
+            ).createMediaSource(
+                it.request.toMediaItem()
+            )
+        }
+    }
 
     override val size: Long
-        get() = try {
-            indexEntry!!.bytesDownloaded
-        } catch (e: Exception) {
-            0L
-        }
+        get() = getIndexEntry(storage)?.bytesDownloaded ?: 0L
 
     final override val download: MediaSource?
-        get() {
-            val originalStorage = storage
-            return try {
-                storage = context.internalStorage
-                indexEntry!!
-                mediaSource
-            } catch (e: Exception) {
-                try {
-                    storage = context.sdcardStorage!!
-                    indexEntry!!
-                    mediaSource
-                } catch (e: Exception) {
-                    null
-                }
-            } finally {
-                storage = originalStorage
-            }
-        }
+        get() = getMediaSource(context.internalStorage)
+            ?: context.sdcardStorage?.let { getMediaSource(it) }
 
     /*val subs: Map<String, MediaSource>?
         get() {
