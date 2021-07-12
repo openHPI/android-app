@@ -25,6 +25,7 @@
             android:entries="@array/settings_values_storages"
             android:entryValues="@array/settings_values_storages"
             android:key="@string/preference_storage"
+            android:summary="%s"
             android:title="@string/settings_title_storage" />
 
     </androidx.preference.PreferenceCategory>
@@ -42,6 +43,14 @@
             android:key="@string/preference_download_network"
             android:summary="@string/settings_summary_download_network"
             android:title="@string/settings_title_download_network" />
+
+        <androidx.preference.ListPreference
+            android:defaultValue="@string/settings_default_value_video_download_quality"
+            android:entries="@array/settings_entries_video_download_quality"
+            android:entryValues="@array/settings_values_video_download_quality"
+            android:key="@string/preference_video_download_quality"
+            android:summary="@string/settings_summary_video_download_quality"
+            android:title="@string/settings_title_video_download_quality" />
 
     </androidx.preference.PreferenceCategory>
 

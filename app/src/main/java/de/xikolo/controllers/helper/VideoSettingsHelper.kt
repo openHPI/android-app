@@ -20,10 +20,67 @@ import de.xikolo.storages.ApplicationPreferences
 import de.xikolo.utils.LanguageUtil
 import de.xikolo.views.CustomFontTextView
 
-class VideoSettingsHelper(private val context: Context, private val subtitles: List<VideoSubtitles>?, private val changeListener: OnSettingsChangeListener, private val clickListener: OnSettingsClickListener, private val videoInfoCallback: VideoInfoCallback) {
+class VideoSettingsHelper(
+    private val context: Context,
+    private val subtitles: List<VideoSubtitles>,
+    private val changeListener: OnSettingsChangeListener,
+    private val clickListener: OnSettingsClickListener,
+    private val videoInfoCallback: VideoInfoCallback
+) {
 
-    enum class VideoMode(val title: String) {
-        SD("SD"), HD("HD"), AUTO("Auto")
+    // targetBitrate = lowestBitrate + (highestBitrate - lowestBitrate) * bitrateScale / 100
+    /**
+     * Video quality classes based on adaptive bitrate selection by specifying it as a fraction of
+     * the bitrate range.
+     *
+     * targetBitrate = lowestBitrate + (highestBitrate - lowestBitrate) * qualityFraction
+     */
+    enum class VideoQuality(val qualityFraction: Float) {
+        LOW(0f),
+        MEDIUM(0.33f),
+        HIGH(0.67f),
+        BEST(1f);
+
+        fun toString(context: Context): String {
+            return when (this) {
+                LOW -> context.getString(R.string.settings_video_download_quality_low_value)
+                MEDIUM -> context.getString(R.string.settings_video_download_quality_medium_value)
+                HIGH -> context.getString(R.string.settings_video_download_quality_high_value)
+                BEST -> context.getString(R.string.settings_video_download_quality_best_value)
+            }
+        }
+
+        companion object {
+            fun get(context: Context, str: String?): VideoQuality {
+                return when (str) {
+                    context.getString(R.string.settings_video_download_quality_low_value) -> LOW
+                    context.getString(R.string.settings_video_download_quality_medium_value) ->
+                        MEDIUM
+                    context.getString(R.string.settings_video_download_quality_high_value) -> HIGH
+                    context.getString(R.string.settings_video_download_quality_best_value) -> BEST
+                    else -> get(
+                        context,
+                        context.getString(R.string.settings_default_value_video_download_quality)
+                    )
+                }
+            }
+        }
+    }
+
+    enum class PlaybackMode {
+        AUTO, BEST, HIGH, MEDIUM, LOW, LEGACY_HD, LEGACY_SD;
+
+        fun getTitle(context: Context): String {
+            return when (this) {
+                AUTO -> context.getString(R.string.exo_track_selection_auto)
+                LOW -> context.getString(R.string.settings_video_download_quality_low)
+                MEDIUM -> context.getString(R.string.settings_video_download_quality_medium)
+                HIGH -> context.getString(R.string.settings_video_download_quality_high)
+                BEST -> context.getString(R.string.settings_video_download_quality_best)
+                LEGACY_HD -> context.getString(R.string.settings_video_download_quality_high)
+                LEGACY_SD -> context.getString(R.string.settings_video_download_quality_low)
+            }
+        }
     }
 
     enum class PlaybackSpeed(val value: Float) {
@@ -42,7 +99,7 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
                     "x1.5" -> X15
                     "x1.8" -> X18
                     "x2.0" -> X20
-                    else   -> X10
+                    else -> X10
                 }
             }
         }
@@ -52,7 +109,7 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
 
     private val applicationPreferences: ApplicationPreferences = ApplicationPreferences()
 
-    var currentQuality: VideoMode = VideoMode.HD
+    var currentMode: PlaybackMode = PlaybackMode.AUTO
     var currentSpeed: PlaybackSpeed = PlaybackSpeed.X10
     var currentVideoSubtitles: VideoSubtitles? = null
     var isImmersiveModeEnabled: Boolean = false
@@ -60,18 +117,20 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
     init {
         currentSpeed = applicationPreferences.videoPlaybackSpeed
 
-        currentQuality = when {
-            videoInfoCallback.isAvailable(VideoMode.HD)   -> VideoMode.HD
-            videoInfoCallback.isAvailable(VideoMode.SD)   -> VideoMode.SD
-            videoInfoCallback.isAvailable(VideoMode.AUTO) -> VideoMode.AUTO
-            else                                          -> throw IllegalArgumentException("No video available")
+        currentMode = when {
+            videoInfoCallback.isAvailable(PlaybackMode.AUTO) -> PlaybackMode.AUTO
+            videoInfoCallback.isAvailable(PlaybackMode.BEST) -> PlaybackMode.BEST
+            videoInfoCallback.isAvailable(PlaybackMode.HIGH) -> PlaybackMode.HIGH
+            videoInfoCallback.isAvailable(PlaybackMode.MEDIUM) -> PlaybackMode.MEDIUM
+            videoInfoCallback.isAvailable(PlaybackMode.LOW) -> PlaybackMode.LOW
+            videoInfoCallback.isAvailable(PlaybackMode.LEGACY_HD) -> PlaybackMode.LEGACY_HD
+            videoInfoCallback.isAvailable(PlaybackMode.LEGACY_SD) -> PlaybackMode.LEGACY_SD
+            else -> throw IllegalArgumentException("No video available")
         }
 
-        subtitles?.let {
-            for (videoSubtitles in it) {
-                if (videoSubtitles.language == applicationPreferences.videoSubtitlesLanguage) {
-                    currentVideoSubtitles = videoSubtitles
-                }
+        for (videoSubtitles in subtitles) {
+            if (videoSubtitles.language == applicationPreferences.videoSubtitlesLanguage) {
+                currentVideoSubtitles = videoSubtitles
             }
         }
 
@@ -84,9 +143,13 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
         list.addView(
             buildSettingsItem(
                 R.string.icon_quality,
-                context.getString(R.string.video_settings_quality) + "  " + context.getString(R.string.video_settings_separator) + "  " + currentQuality.title +
-                    if (videoInfoCallback.isOfflineAvailable(currentQuality)) " " + context.getString(R.string.video_settings_quality_offline) else "",
-                View.OnClickListener { clickListener.onQualityClick() },
+                context.getString(R.string.video_settings_quality) + "  " +
+                    context.getString(R.string.video_settings_separator) + "  " +
+                    currentMode.getTitle(context) +
+                    if (videoInfoCallback.isOfflineAvailable(currentMode)) {
+                        " " + context.getString(R.string.video_settings_quality_offline)
+                    } else "",
+                { clickListener.onQualityClick() },
                 false,
                 Config.FONT_MATERIAL
             )
@@ -95,12 +158,12 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
             buildSettingsItem(
                 R.string.icon_speed,
                 context.getString(R.string.video_settings_speed) + "  " + context.getString(R.string.video_settings_separator) + "  " + currentSpeed.toString(),
-                View.OnClickListener { clickListener.onPlaybackSpeedClick() },
+                { clickListener.onPlaybackSpeedClick() },
                 false,
                 Config.FONT_MATERIAL
             )
         )
-        if (subtitles?.isNotEmpty() == true) {
+        if (subtitles.isNotEmpty()) {
             list.addView(
                 buildSettingsItem(
                     R.string.icon_subtitles,
@@ -110,7 +173,7 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
                                 "  " + LanguageUtil.toNativeName(it.language)
                         } ?: ""
                         ),
-                    View.OnClickListener { clickListener.onSubtitleClick() },
+                    { clickListener.onSubtitleClick() },
                     false,
                     Config.FONT_MATERIAL
                 )
@@ -126,7 +189,7 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
                 buildSettingsItem(
                     R.string.icon_pip,
                     context.getString(R.string.video_settings_pip),
-                    View.OnClickListener { clickListener.onPipClick() },
+                    { clickListener.onPipClick() },
                     false,
                     Config.FONT_MATERIAL
                 )
@@ -139,50 +202,24 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
     fun buildQualityView(): ViewGroup {
         val list = buildSettingsPanel(context.getString(R.string.video_settings_quality))
 
-        if (videoInfoCallback.isAvailable(VideoMode.AUTO)) {
-            list.addView(
-                buildSettingsItem(
-                    null,
-                    VideoMode.AUTO.title +
-                        if (videoInfoCallback.isOfflineAvailable(VideoMode.AUTO)) " " + context.getString(R.string.video_settings_quality_offline) else "",
-                    View.OnClickListener {
-                        val oldQuality = currentQuality
-                        currentQuality = VideoMode.AUTO
-                        changeListener.onQualityChanged(oldQuality, currentQuality)
-                    },
-                    currentQuality == VideoMode.AUTO
+        PlaybackMode.values().forEach { playbackMode ->
+            if (videoInfoCallback.isAvailable(playbackMode)) {
+                list.addView(
+                    buildSettingsItem(
+                        null,
+                        playbackMode.getTitle(context) +
+                            if (videoInfoCallback.isOfflineAvailable(playbackMode))
+                                " " + context.getString(R.string.video_settings_quality_offline)
+                            else "",
+                        {
+                            val oldQuality = currentMode
+                            currentMode = playbackMode
+                            changeListener.onPlaybackModeChanged(oldQuality, currentMode)
+                        },
+                        currentMode == playbackMode
+                    )
                 )
-            )
-        }
-        if (videoInfoCallback.isAvailable(VideoMode.HD)) {
-            list.addView(
-                buildSettingsItem(
-                    null,
-                    VideoMode.HD.title +
-                        if (videoInfoCallback.isOfflineAvailable(VideoMode.HD)) " " + context.getString(R.string.video_settings_quality_offline) else "",
-                    View.OnClickListener {
-                        val oldQuality = currentQuality
-                        currentQuality = VideoMode.HD
-                        changeListener.onQualityChanged(oldQuality, currentQuality)
-                    },
-                    currentQuality == VideoMode.HD
-                )
-            )
-        }
-        if (videoInfoCallback.isAvailable(VideoMode.SD)) {
-            list.addView(
-                buildSettingsItem(
-                    null,
-                    VideoMode.SD.title +
-                        if (videoInfoCallback.isOfflineAvailable(VideoMode.SD)) " " + context.getString(R.string.video_settings_quality_offline) else "",
-                    View.OnClickListener {
-                        val oldQuality = currentQuality
-                        currentQuality = VideoMode.SD
-                        changeListener.onQualityChanged(oldQuality, currentQuality)
-                    },
-                    currentQuality == VideoMode.SD
-                )
-            )
+            }
         }
 
         return list.parent as ViewGroup
@@ -196,7 +233,7 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
                 buildSettingsItem(
                     null,
                     speed.toString(),
-                    View.OnClickListener {
+                    {
                         val oldSpeed = currentSpeed
                         currentSpeed = speed
                         changeListener.onPlaybackSpeedChanged(oldSpeed, currentSpeed)
@@ -212,17 +249,20 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
     fun buildSubtitleView(): ViewGroup {
         val list = buildSettingsPanel(
             context.getString(R.string.video_settings_subtitles),
-            context.getString(R.string.icon_settings),
-            View.OnClickListener {
-                ContextCompat.startActivity(context, Intent(Settings.ACTION_CAPTIONING_SETTINGS), null)
-            }
-        )
+            context.getString(R.string.icon_settings)
+        ) {
+            ContextCompat.startActivity(
+                context,
+                Intent(Settings.ACTION_CAPTIONING_SETTINGS),
+                null
+            )
+        }
 
         list.addView(
             buildSettingsItem(
                 null,
                 context.getString(R.string.video_settings_subtitles_none),
-                View.OnClickListener {
+                {
                     val oldVideoSubtitles = currentVideoSubtitles
                     currentVideoSubtitles = null
                     applicationPreferences.videoSubtitlesLanguage = null
@@ -231,13 +271,13 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
                 currentVideoSubtitles == null
             )
         )
-        for (videoSubtitles in subtitles!!) {
+        for (videoSubtitles in subtitles) {
             list.addView(
                 buildSettingsItem(
                     null,
                     LanguageUtil.toNativeName(videoSubtitles.language) +
                         if (videoSubtitles.createdByMachine) " " + context.getString(R.string.video_settings_subtitles_generated) else "",
-                    View.OnClickListener {
+                    {
                         val oldVideoSubtitles = currentVideoSubtitles
                         currentVideoSubtitles = videoSubtitles
                         applicationPreferences.videoSubtitlesLanguage = videoSubtitles.language
@@ -267,7 +307,11 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
         return list
     }
 
-    private fun buildSettingsPanel(title: String?, icon: String, iconClickListener: View.OnClickListener): ViewGroup {
+    private fun buildSettingsPanel(
+        title: String?,
+        icon: String,
+        iconClickListener: View.OnClickListener
+    ): ViewGroup {
         val panel = buildSettingsPanel(title)
         val iconView = panel.findViewById(R.id.content_settings_icon) as TextView
         iconView.text = icon
@@ -277,7 +321,13 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
     }
 
     @SuppressLint("InflateParams")
-    private fun buildSettingsItem(@StringRes icon: Int?, title: String, clickListener: View.OnClickListener, active: Boolean, font: String = Config.FONT_XIKOLO): ViewGroup {
+    private fun buildSettingsItem(
+        @StringRes icon: Int?,
+        title: String,
+        clickListener: View.OnClickListener,
+        active: Boolean,
+        font: String = Config.FONT_XIKOLO
+    ): ViewGroup {
         val item = inflater.inflate(R.layout.item_video_settings, null) as LinearLayout
 
         val iconView = item.findViewById(R.id.item_settings_icon) as CustomFontTextView
@@ -306,12 +356,19 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
     private fun buildImmersiveSettingsItem(parent: ViewGroup): View {
         return buildSettingsItem(
             if (isImmersiveModeEnabled) R.string.icon_show_fitting else R.string.icon_show_immersive,
-            if (isImmersiveModeEnabled) context.getString(R.string.video_settings_show_fitting) else context.getString(R.string.video_settings_show_immersive),
-            View.OnClickListener {
+            if (isImmersiveModeEnabled) {
+                context.getString(R.string.video_settings_show_fitting)
+            } else {
+                context.getString(R.string.video_settings_show_immersive)
+            },
+            {
                 isImmersiveModeEnabled = !isImmersiveModeEnabled
 
                 applicationPreferences.isVideoShownImmersive = isImmersiveModeEnabled
-                changeListener.onImmersiveModeChanged(!isImmersiveModeEnabled, isImmersiveModeEnabled)
+                changeListener.onImmersiveModeChanged(
+                    !isImmersiveModeEnabled,
+                    isImmersiveModeEnabled
+                )
 
                 val index = parent.indexOfChild(it)
                 parent.removeViewAt(index)
@@ -337,7 +394,7 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
     // also invoked when old value equal to new value
     interface OnSettingsChangeListener {
 
-        fun onQualityChanged(old: VideoMode, new: VideoMode)
+        fun onPlaybackModeChanged(old: PlaybackMode, new: PlaybackMode)
 
         fun onPlaybackSpeedChanged(old: PlaybackSpeed, new: PlaybackSpeed)
 
@@ -349,9 +406,9 @@ class VideoSettingsHelper(private val context: Context, private val subtitles: L
 
     interface VideoInfoCallback {
 
-        fun isAvailable(videoMode: VideoMode): Boolean
+        fun isAvailable(mode: PlaybackMode): Boolean
 
-        fun isOfflineAvailable(videoMode: VideoMode): Boolean
+        fun isOfflineAvailable(mode: PlaybackMode): Boolean
 
         fun isImmersiveModeAvailable(): Boolean
     }

@@ -2,41 +2,70 @@ package de.xikolo.download
 
 import androidx.fragment.app.FragmentActivity
 
-abstract class DownloadItem<out F, out I : DownloadIdentifier> {
+/**
+ * Definition of a downloadable thing.
+ *
+ * @param D The type of the download object.
+ * @param I The [DownloadIdentifier] type.
+ */
+interface DownloadItem<out D, I : DownloadIdentifier> {
 
-    abstract val isDownloadable: Boolean
+    /**
+     * The identifier of the download.
+     * Must not be accessed when [downloadable] is false.
+     */
+    val identifier: I
 
-    abstract val downloadSize: Long
+    /**
+     * The download object.
+     * Is null when the download is not available, e.g. it has not been downloaded,
+     * or when an error occurred.
+     */
+    val download: D?
 
-    abstract val title: String
+    /**
+     * Whether the item can be downloaded.
+     */
+    val downloadable: Boolean
 
-    abstract val download: F?
+    /**
+     * The title of the download.
+     */
+    val title: String
 
-    abstract val openAction: ((FragmentActivity) -> Unit)?
+    /**
+     * Executable block to open the download.
+     */
+    val openAction: ((FragmentActivity) -> Unit)?
 
-    abstract var stateListener: StateListener?
+    /**
+     * Total size of the download.
+     * Returns 0 per default if the download size cannot be determined.
+     */
+    val size: Long
 
-    abstract fun start(activity: FragmentActivity, callback: ((I?) -> Unit)? = null)
+    /**
+     * Subscriptable [LiveData] status of the download.
+     */
+    val status: DownloadStatus.DownloadStatusLiveData
 
-    abstract fun cancel(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)
+    /**
+     * Starts the downloading process.
+     *
+     * @param activity The context activity for the download. Used to e.g. check permissions.
+     * @param callback An asynchronous callback to deliver a return value.
+     * It returns true when downloading started successfully, otherwise false.
+     * This callback is always invoked if not null.
+     */
+    fun start(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)
 
-    abstract fun delete(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)
-
-    abstract fun getProgress(callback: (Pair<Long?, Long?>) -> Unit)
-
-    abstract fun isDownloadRunning(callback: (Boolean) -> Unit)
-
-    val downloadExists: Boolean
-        get() {
-            return download != null
-        }
-
-    interface StateListener {
-
-        fun onStarted()
-
-        fun onCompleted()
-
-        fun onDeleted()
-    }
+    /**
+     * Deletes the download. When the download is pending or running, it is canceled first.
+     *
+     * @param activity The context activity for the download. Used to e.g. check permissions.
+     * @param callback An asynchronous callback to deliver a return value.
+     * It returns true when the download deletion was initiated successfully, otherwise false.
+     * This callback is always invoked if not null.
+     */
+    fun delete(activity: FragmentActivity, callback: ((Boolean) -> Unit)? = null)
 }

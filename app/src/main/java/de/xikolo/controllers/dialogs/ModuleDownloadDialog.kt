@@ -17,10 +17,7 @@ class ModuleDownloadDialog : BaseDialogFragment() {
     var listener: ItemSelectionListener? = null
 
     @AutoBundleField(required = false)
-    var hdVideo: Boolean = false
-
-    @AutoBundleField(required = false)
-    var sdVideo: Boolean = false
+    var video: Boolean = false
 
     @AutoBundleField(required = false)
     var slides: Boolean = false
@@ -38,13 +35,12 @@ class ModuleDownloadDialog : BaseDialogFragment() {
                 null
             ) { _, which, isChecked ->
                 when (which) {
-                    0 -> hdVideo = isChecked
-                    1 -> sdVideo = isChecked
-                    2 -> slides = isChecked
+                    0 -> video = isChecked
+                    1 -> slides = isChecked
                 }
             }
             .setPositiveButton(R.string.download) { _, _ ->
-                listener?.onSelected(this, hdVideo, sdVideo, slides)
+                listener?.onSelected(this, video, slides)
             }
             .setNegativeButton(R.string.dialog_negative) { _, _ -> dialog?.cancel() }
             .setCancelable(true)
@@ -56,7 +52,7 @@ class ModuleDownloadDialog : BaseDialogFragment() {
     }
 
     interface ItemSelectionListener {
-        fun onSelected(dialog: DialogFragment, hdVideo: Boolean, sdVideo: Boolean, slides: Boolean)
+        fun onSelected(dialog: DialogFragment, video: Boolean, slides: Boolean)
     }
 
 }

@@ -1,7 +1,6 @@
 package de.xikolo.controllers.settings
 
 import android.content.Intent
-import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
 import androidx.browser.customtabs.CustomTabsIntent
@@ -10,33 +9,23 @@ import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
-import androidx.preference.PreferenceManager
 import de.psdev.licensesdialog.LicensesDialog
 import de.xikolo.App
 import de.xikolo.BuildConfig
 import de.xikolo.R
 import de.xikolo.config.Feature
-import de.xikolo.controllers.dialogs.ProgressDialogHorizontal
-import de.xikolo.controllers.dialogs.ProgressDialogHorizontalAutoBundle
-import de.xikolo.controllers.dialogs.StorageMigrationDialog
-import de.xikolo.controllers.dialogs.StorageMigrationDialogAutoBundle
 import de.xikolo.controllers.login.LoginActivityAutoBundle
-import de.xikolo.download.filedownload.FileDownloadHandler
+import de.xikolo.download.Downloaders
 import de.xikolo.extensions.observe
 import de.xikolo.managers.PermissionManager
 import de.xikolo.managers.UserManager
-import de.xikolo.models.Storage
-import de.xikolo.utils.extensions.asStorageType
-import de.xikolo.utils.extensions.fileCount
 import de.xikolo.utils.extensions.getString
 import de.xikolo.utils.extensions.getStringArray
-import de.xikolo.utils.extensions.internalStorage
-import de.xikolo.utils.extensions.sdcardStorage
 import de.xikolo.utils.extensions.showToast
 import de.xikolo.utils.extensions.storages
 import java.util.Calendar
 
-class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedPreferenceChangeListener {
+class SettingsFragment : PreferenceFragmentCompat() {
 
     companion object {
         val TAG: String = SettingsFragment::class.java.simpleName
@@ -58,95 +47,17 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     }
 
     override fun onResume() {
-        preferenceManager.sharedPreferences.registerOnSharedPreferenceChangeListener(this)
         refreshPipStatus()
         super.onResume()
-    }
-
-    override fun onPause() {
-        preferenceManager.sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
-        super.onPause()
-    }
-
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        if (key.equals(getString(R.string.preference_storage))) {
-            val newStoragePreference = sharedPreferences?.getString(getString(R.string.preference_storage), getString(R.string.settings_default_value_storage))!!
-            findPreference<ListPreference>(getString(R.string.preference_storage))?.summary = newStoragePreference
-
-            val newStorageType = newStoragePreference.asStorageType
-            var oldStorageType = Storage.Type.INTERNAL
-            var oldStorage = App.instance.internalStorage
-            if (newStorageType == Storage.Type.INTERNAL) {
-                oldStorageType = Storage.Type.SDCARD
-                oldStorage = App.instance.sdcardStorage!!
-            }
-
-            // clean up before
-            oldStorage.clean()
-
-            val fileCount = oldStorage.file.fileCount
-            if (fileCount > 0) {
-                val dialog = StorageMigrationDialogAutoBundle.builder(oldStorageType).build()
-                dialog.listener = object : StorageMigrationDialog.Listener {
-                    override fun onDialogPositiveClick() {
-                        val progressDialog = ProgressDialogHorizontalAutoBundle.builder()
-                            .title(getString(R.string.dialog_storage_migration_title))
-                            .message(getString(R.string.dialog_storage_migration_message))
-                            .build()
-                        progressDialog.max = fileCount
-                        progressDialog.show(fragmentManager!!, ProgressDialogHorizontal.TAG)
-
-                        val migrationCallback = object : Storage.MigrationCallback {
-                            override fun onProgressChanged(count: Int) {
-                                activity?.runOnUiThread { progressDialog.progress = count }
-                            }
-
-                            override fun onCompleted(success: Boolean) {
-                                activity?.runOnUiThread {
-                                    if (success) {
-                                        showToast(R.string.dialog_storage_migration_successful)
-                                    } else {
-                                        showToast(R.string.error_plain)
-                                    }
-                                    progressDialog.dismiss()
-                                }
-                            }
-                        }
-
-                        if (newStorageType == Storage.Type.INTERNAL) {
-                            App.instance.sdcardStorage!!.migrateTo(
-                                App.instance.internalStorage,
-                                migrationCallback
-                            )
-                        } else {
-                            App.instance.internalStorage.migrateTo(
-                                App.instance.sdcardStorage!!,
-                                migrationCallback
-                            )
-                        }
-                    }
-                }
-
-
-                dialog.show(fragmentManager!!, StorageMigrationDialog.TAG)
-            }
-        }
     }
 
     override fun onCreatePreferences(bundle: Bundle?, rootKey: String?) {
         addPreferencesFromResource(R.xml.settings)
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
-
-        findPreference<ListPreference>(getString(R.string.preference_storage))?.summary =
-            prefs.getString(
-                getString(R.string.preference_storage),
-                getString(R.string.settings_default_value_storage)
-            )!!
         findPreference<ListPreference>(getString(R.string.preference_storage))?.onPreferenceChangeListener =
             Preference.OnPreferenceChangeListener { preference, newValue ->
-                FileDownloadHandler.isDownloadingAnything { isDownloadingAnything ->
-                    if (isDownloadingAnything) {
+                Downloaders.isDownloadingAnything {
+                    if (it) {
                         showToast(R.string.notification_storage_locked)
                     } else {
                         val listener = preference.onPreferenceChangeListener

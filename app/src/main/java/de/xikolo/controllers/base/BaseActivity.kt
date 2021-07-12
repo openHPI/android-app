@@ -265,7 +265,7 @@ abstract class BaseActivity : AppCompatActivity(), CastStateListener {
 
     private fun handleIntent(intent: Intent?) {
         if (intent != null) {
-            NotificationUtil.deleteDownloadNotificationsFromIntent(intent)
+            NotificationUtil.getInstance(this).deleteDownloadNotificationsFromIntent(intent)
         }
     }
 

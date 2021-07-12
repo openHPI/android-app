@@ -7,7 +7,6 @@ import de.xikolo.App
 import de.xikolo.R
 import java.io.File
 import java.text.DecimalFormat
-import java.util.ArrayList
 import kotlin.math.log10
 import kotlin.math.pow
 
@@ -24,44 +23,13 @@ val <T : File?> T.fileSize: Long
         return length
     }
 
-val <T : File?> T.folderSize: Long
-    get() {
-        var length: Long = 0
-        if (this != null && listFiles() != null) {
-            for (file in listFiles()) {
-                length += if (file.isFile) {
-                    file.length()
-                } else {
-                    file.folderSize
-                }
-            }
-        }
-        return length
-    }
-
 val Long.asFormattedFileSize: String
     get() {
         if (this <= 0)
-            return "0"
+            return "0 MB"
         val units = arrayOf("B", "KB", "MB", "GB", "TB")
         val digitGroups = (log10(this.toDouble()) / log10(1024.0)).toInt()
         return DecimalFormat("#,##0.#").format(this / 1024.0.pow(digitGroups.toDouble())) + " " + units[digitGroups]
-    }
-
-val <T : File> T.foldersWithFiles: List<String>
-    get() {
-        val folders = ArrayList<String>()
-
-        if (isDirectory) {
-            val files = listFiles() ?: arrayOf<File>()
-            for (file in files) {
-                if (file.isDirectory) {
-                    folders.add(file.absolutePath)
-                }
-            }
-        }
-
-        return folders
     }
 
 val <T : File?> T.fileCount: Int
@@ -77,25 +45,6 @@ val <T : File?> T.fileCount: Int
             }
         return files
     }
-
-fun <T : File> T.deleteAll() {
-    if (isDirectory) {
-        if (list().isEmpty()) {
-            delete()
-        } else {
-            val files = list()
-            for (temp in files) {
-                val fileDelete = File(this, temp)
-                fileDelete.deleteAll()
-            }
-            if (list().isEmpty()) {
-                this.delete()
-            }
-        }
-    } else {
-        this.delete()
-    }
-}
 
 fun <T : File> T.createIfNotExists() {
     var folder: File = this

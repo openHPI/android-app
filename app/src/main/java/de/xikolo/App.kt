@@ -6,7 +6,7 @@ import android.webkit.WebView
 import androidx.preference.PreferenceManager
 import de.xikolo.config.Config
 import de.xikolo.config.Feature
-import de.xikolo.download.filedownload.FileDownloadHandler
+import de.xikolo.download.Downloaders
 import de.xikolo.lanalytics.Lanalytics
 import de.xikolo.models.migrate.RealmSchemaMigration
 import de.xikolo.states.ConnectivityStateLiveData
@@ -62,7 +62,7 @@ class App : Application() {
         configureRealm()
         configureDefaultSettings()
         configureWebView()
-        configureDownloader()
+        configureDownloaders()
         if (Feature.SHORTCUTS) {
             ShortcutUtil.configureShortcuts(applicationContext)
         }
@@ -89,10 +89,8 @@ class App : Application() {
         }
     }
 
-    private fun configureDownloader() {
-        // The initialization of Fetch takes some time when the object is initialized.
-        // Initializing the object here makes sure the object is already initialized upon use so the UI does not hang.
-        FileDownloadHandler
+    private fun configureDownloaders() {
+        Downloaders.initialize()
     }
 
     fun syncCookieSyncManager() {

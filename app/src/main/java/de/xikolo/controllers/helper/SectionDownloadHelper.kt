@@ -9,6 +9,8 @@ import de.xikolo.controllers.dialogs.ModuleDownloadDialog
 import de.xikolo.controllers.dialogs.ModuleDownloadDialogAutoBundle
 import de.xikolo.controllers.dialogs.ProgressDialogIndeterminate
 import de.xikolo.controllers.dialogs.ProgressDialogIndeterminateAutoBundle
+import de.xikolo.download.DownloadItem
+import de.xikolo.download.DownloadStatus
 import de.xikolo.models.Course
 import de.xikolo.models.DownloadAsset
 import de.xikolo.models.Item
@@ -32,23 +34,27 @@ class SectionDownloadHelper(private val activity: FragmentActivity) {
 
         listDialog.listener = object : ModuleDownloadDialog.ItemSelectionListener {
 
-            override fun onSelected(dialog: DialogFragment, hdVideo: Boolean, sdVideo: Boolean, slides: Boolean) {
+            override fun onSelected(dialog: DialogFragment, video: Boolean, slides: Boolean) {
                 val appPreferences = ApplicationPreferences()
-                if (hdVideo || sdVideo || slides) {
+                if (video || slides) {
                     if (activity.isOnline) {
                         if (activity.connectivityType === ConnectivityType.CELLULAR && appPreferences.isDownloadNetworkLimitedOnMobile) {
                             val permissionDialog = MobileDownloadDialog()
 
-                            permissionDialog.listener = object : MobileDownloadDialog.MobileDownloadGrantedListener {
+                            permissionDialog.listener =
+                                object : MobileDownloadDialog.MobileDownloadGrantedListener {
 
-                                override fun onGranted(dialog: DialogFragment) {
-                                    appPreferences.isDownloadNetworkLimitedOnMobile = false
-                                    startSectionDownloads(course, section, hdVideo, sdVideo, slides)
+                                    override fun onGranted(dialog: DialogFragment) {
+                                        appPreferences.isDownloadNetworkLimitedOnMobile = false
+                                        startSectionDownloads(course, section, video, slides)
+                                    }
                                 }
-                            }
-                            permissionDialog.show(activity.supportFragmentManager, MobileDownloadDialog.TAG)
+                            permissionDialog.show(
+                                activity.supportFragmentManager,
+                                MobileDownloadDialog.TAG
+                            )
                         } else {
-                            startSectionDownloads(course, section, hdVideo, sdVideo, slides)
+                            startSectionDownloads(course, section, video, slides)
                         }
                     } else {
                         activity.showToast(R.string.toast_no_network)
@@ -60,8 +66,13 @@ class SectionDownloadHelper(private val activity: FragmentActivity) {
         listDialog.show(activity.supportFragmentManager, ModuleDownloadDialog.TAG)
     }
 
-    private fun startSectionDownloads(course: Course, section: Section, hdVideo: Boolean, sdVideo: Boolean, slides: Boolean) {
-        LanalyticsUtil.trackDownloadedSection(section.id, course.id, hdVideo, sdVideo, slides)
+    private fun startSectionDownloads(
+        course: Course,
+        section: Section,
+        video: Boolean,
+        slides: Boolean
+    ) {
+        LanalyticsUtil.trackDownloadedSection(section.id, course.id, video, false, slides)
 
         val dialog = ProgressDialogIndeterminateAutoBundle.builder().build()
         dialog.show(activity.supportFragmentManager, ProgressDialogIndeterminate.TAG)
@@ -77,14 +88,23 @@ class SectionDownloadHelper(private val activity: FragmentActivity) {
                     dialog.dismissAllowingStateLoss()
                     for (item in section.accessibleItems) {
                         if (item.contentType == Item.TYPE_VIDEO) {
-                            if (sdVideo) {
-                                startDownload(DownloadAsset.Course.Item.VideoSD(item, VideoDao.Unmanaged.find(item.contentId)!!))
+                            if (video) {
+                                startDownload(
+                                    DownloadAsset.Course.Item.VideoHLS(
+                                        item,
+                                        VideoDao.Unmanaged.find(item.contentId)!!,
+                                        ApplicationPreferences().videoDownloadQuality
+                                    )
+                                )
                             }
-                            if (hdVideo) {
-                                startDownload(DownloadAsset.Course.Item.VideoHD(item, VideoDao.Unmanaged.find(item.contentId)!!))
-                            }
+
                             if (slides) {
-                                startDownload(DownloadAsset.Course.Item.Slides(item, VideoDao.Unmanaged.find(item.contentId)!!))
+                                startDownload(
+                                    DownloadAsset.Course.Item.Slides(
+                                        item,
+                                        VideoDao.Unmanaged.find(item.contentId)!!
+                                    )
+                                )
                             }
                         }
                     }
@@ -98,12 +118,9 @@ class SectionDownloadHelper(private val activity: FragmentActivity) {
         ListItemsWithContentForSectionJob(section.id, itemRequestNetworkState, false).run()
     }
 
-    private fun startDownload(item: DownloadAsset.Course.Item) {
-        item.isDownloadRunning {
-            if (!item.downloadExists && !it) {
-                item.start(activity)
-            }
+    private fun startDownload(item: DownloadItem<*, *>) {
+        if (item.status.state == DownloadStatus.State.DELETED) {
+            item.start(activity)
         }
     }
-
 }

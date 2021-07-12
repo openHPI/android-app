@@ -49,19 +49,6 @@ val <T : Context> T.preferredStorage: Storage
         }
     }
 
-fun <T : Context> T.buildMigrationMessage(from: Storage.Type): String {
-    val currentStorage = storagePreference
-    var current = getString(R.string.settings_title_storage_internal)
-    if (currentStorage == Storage.Type.INTERNAL)
-        current = getString(R.string.settings_title_storage_external)
-
-    var destination = getString(R.string.settings_title_storage_external)
-    if (from == Storage.Type.SDCARD)
-        destination = getString(R.string.settings_title_storage_internal)
-
-    return getString(R.string.dialog_storage_migration, current, destination)
-}
-
 fun <T : Context> T.buildWriteErrorMessage(): String {
     var storage = getString(R.string.settings_title_storage_internal)
     if (storagePreference == Storage.Type.SDCARD)
@@ -71,5 +58,5 @@ fun <T : Context> T.buildWriteErrorMessage(): String {
 
 private val storagePreference: Storage.Type
     get() {
-        return ApplicationPreferences().storage!!.asStorageType
+        return ApplicationPreferences().storage.asStorageType
     }

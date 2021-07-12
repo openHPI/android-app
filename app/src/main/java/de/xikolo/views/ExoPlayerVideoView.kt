@@ -11,14 +11,13 @@ import com.google.android.exoplayer2.ExoPlaybackException
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.PlaybackParameters
 import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.Renderer
 import com.google.android.exoplayer2.SimpleExoPlayer
-import com.google.android.exoplayer2.Timeline
 import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.MergingMediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.SingleSampleMediaSource
 import com.google.android.exoplayer2.source.TrackGroupArray
+import com.google.android.exoplayer2.source.hls.HlsManifest
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
@@ -30,6 +29,8 @@ import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
 import com.google.android.exoplayer2.util.MimeTypes
 import com.google.android.exoplayer2.util.Util
 import com.google.android.exoplayer2.video.VideoListener
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 open class ExoPlayerVideoView : PlayerView {
 
@@ -37,8 +38,10 @@ open class ExoPlayerVideoView : PlayerView {
     private lateinit var exoplayer: SimpleExoPlayer
     private lateinit var dataSourceFactory: DefaultDataSourceFactory
     private lateinit var bandwidthMeter: DefaultBandwidthMeter
+    private lateinit var trackSelector: DefaultTrackSelector
 
     private var videoMediaSource: MediaSource? = null
+    private var subtitleMediaSources: Map<String, MediaSource>? = null
     private var mergedMediaSource: MediaSource? = null
     private var mediaMetadataRetriever: MediaMetadataRetriever? = null
 
@@ -56,9 +59,6 @@ open class ExoPlayerVideoView : PlayerView {
     private var previewPrepareThread = Thread()
 
     var aspectRatio: Float = 16.0f / 9.0f
-
-    var uri: Uri? = null
-        private set
 
     var previewAvailable = false
         private set
@@ -94,15 +94,14 @@ open class ExoPlayerVideoView : PlayerView {
             Util.getUserAgent(playerContext, playerContext.packageName),
             bandwidthMeter
         )
+        trackSelector = DefaultTrackSelector(
+            context,
+            AdaptiveTrackSelection.Factory()
+        )
 
-        exoplayer = SimpleExoPlayer.Builder(
-            context
-        ).setTrackSelector(
-            DefaultTrackSelector(
-                context,
-                AdaptiveTrackSelection.Factory()
-            )
-        ).build()
+        exoplayer = SimpleExoPlayer.Builder(context)
+            .setTrackSelector(trackSelector)
+            .build()
 
         exoplayer.addListener(
             object : Player.EventListener {
@@ -155,9 +154,6 @@ open class ExoPlayerVideoView : PlayerView {
 
                 override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                 }
-
-                override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-                }
             }
         )
 
@@ -198,22 +194,49 @@ open class ExoPlayerVideoView : PlayerView {
         )
     }
 
-    fun setVideoURI(uri: Uri, isHls: Boolean) {
-        this.uri = uri
-        videoMediaSource =
-            if (isHls) {
-                HlsMediaSource.Factory(dataSourceFactory)
-                    .setAllowChunklessPreparation(true)
+    fun setProgressiveVideoUri(uri: Uri) {
+        setVideoSource(
+            ProgressiveMediaSource.Factory(dataSourceFactory)
+                .createMediaSource(
+                    MediaItem.fromUri(uri)
+                )
+        )
+    }
+
+    fun setHLSVideoUri(uri: Uri) {
+        setVideoSource(
+            HlsMediaSource.Factory(dataSourceFactory)
+                .setAllowChunklessPreparation(true)
+                .createMediaSource(
+                    MediaItem.fromUri(uri)
+                )
+        )
+    }
+
+    fun setSubtitleUris(uris: Map<String, Uri>) {
+        setSubtitleSources(
+            uris.entries.associate {
+                it.key to SingleSampleMediaSource.Factory(dataSourceFactory)
                     .createMediaSource(
-                        MediaItem.fromUri(uri)
-                    )
-            } else {
-                ProgressiveMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(
-                        MediaItem.fromUri(uri)
+                        MediaItem.Subtitle(
+                            it.value,
+                            MimeTypes.TEXT_VTT,
+                            it.key,
+                            C.SELECTION_FLAG_DEFAULT
+                        ),
+                        C.TIME_UNSET
                     )
             }
+        )
+    }
+
+    fun setVideoSource(source: MediaSource) {
+        videoMediaSource = source
         mergedMediaSource = videoMediaSource
+    }
+
+    fun setSubtitleSources(sources: Map<String, MediaSource>) {
+        subtitleMediaSources = sources
     }
 
     fun setPreviewUri(uri: Uri) {
@@ -243,21 +266,12 @@ open class ExoPlayerVideoView : PlayerView {
         previewPrepareThread.start()
     }
 
-    fun showSubtitles(uri: String, language: String) {
-        val subtitleMediaSource = SingleSampleMediaSource.Factory(dataSourceFactory)
-            .createMediaSource(
-                MediaItem.Subtitle(
-                    Uri.parse(uri),
-                    MimeTypes.TEXT_VTT,
-                    language,
-                    C.SELECTION_FLAG_DEFAULT
-                ),
-                C.TIME_UNSET
-            )
-
-        mergedMediaSource = videoMediaSource?.let {
-            MergingMediaSource(it, subtitleMediaSource)
-        }
+    fun showSubtitles(language: String) {
+        mergedMediaSource = subtitleMediaSources?.get(language)?.let { subtitles ->
+            videoMediaSource?.let { video ->
+                MergingMediaSource(video, subtitles)
+            }
+        } ?: videoMediaSource
     }
 
     fun removeSubtitles() {
@@ -271,14 +285,38 @@ open class ExoPlayerVideoView : PlayerView {
         return null
     }
 
+    fun setDesiredQuality(quality: Float?) {
+        trackSelector.setParameters(
+            DefaultTrackSelector.ParametersBuilder(context)
+                .apply {
+                    if (quality != null) {
+                        val manifest = exoplayer.currentManifest as? HlsManifest
+                        val formats = manifest?.masterPlaylist?.variants?.map { it.format }
+                        if (formats?.isNotEmpty() == true) {
+                            val lowestBitrate = formats.minOf { it.bitrate }
+                            val highestBitrate = formats.maxOf { it.bitrate }
+                            val targetBitrate = lowestBitrate + quality *
+                                (highestBitrate - lowestBitrate)
+                            val closestBitrate = formats.minByOrNull {
+                                abs(it.bitrate - targetBitrate).roundToInt()
+                            }!!.bitrate
+
+                            setMaxVideoBitrate(closestBitrate + 1)
+                            setMinVideoBitrate(closestBitrate - 1)
+                        }
+                    }
+                }
+        )
+    }
+
     fun scaleToFill() {
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-        exoplayer.videoScalingMode = Renderer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        exoplayer.videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
     }
 
     fun scaleToFit() {
+        exoplayer.videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-        exoplayer.videoScalingMode = Renderer.VIDEO_SCALING_MODE_SCALE_TO_FIT
     }
 
     fun prepare() {
