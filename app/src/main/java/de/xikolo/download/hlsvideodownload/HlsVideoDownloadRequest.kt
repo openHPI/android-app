@@ -14,7 +14,6 @@ import de.xikolo.models.Storage
  * This does not necessarily need to correspond to the bitrates in the master playlist.
  * Based on this parameter, the track with the closest calculated target bitrate in the master
  * playlist is selected.
- * // @param subtitles The subtitles to download along the video.
  * @param storage The storage location for the download.
  * @param title The title of the download.
  * @param showNotification Whether to show a notification while downloading.
@@ -23,7 +22,6 @@ import de.xikolo.models.Storage
 class HlsVideoDownloadRequest(
     val url: String,
     val quality: Float,
-    //val subtitles: Map<String, String>?,
     val storage: Storage,
     override val title: String,
     override val showNotification: Boolean,

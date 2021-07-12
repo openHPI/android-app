@@ -1,10 +1,14 @@
 package de.xikolo.download.hlsvideodownload
 
+import android.net.Uri
+import com.google.android.exoplayer2.C
+import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.offline.Download
-import com.google.android.exoplayer2.source.MediaSource
+import com.google.android.exoplayer2.source.SingleSampleMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.upstream.cache.Cache
 import com.google.android.exoplayer2.upstream.cache.CacheDataSource
+import com.google.android.exoplayer2.util.MimeTypes
 import de.xikolo.App
 import de.xikolo.download.DownloadCategory
 import de.xikolo.download.DownloadItemImpl
@@ -17,9 +21,10 @@ open class HlsVideoDownloadItem(
     val url: String?,
     val category: DownloadCategory,
     val quality: Float,
-    //val subtitles: Map<String, String>?,
+    val subtitles: Map<String, String>,
     storage: Storage = App.instance.preferredStorage
-) : DownloadItemImpl<MediaSource, HlsVideoDownloadIdentifier, HlsVideoDownloadRequest>(storage) {
+) : DownloadItemImpl<Pair<HlsMediaSource, Map<String, SingleSampleMediaSource>>,
+    HlsVideoDownloadIdentifier, HlsVideoDownloadRequest>(storage) {
 
     final override val downloader = HlsVideoDownloadHandler
 
@@ -45,65 +50,43 @@ open class HlsVideoDownloadItem(
             )
     }
 
-    private fun getMediaSource(storage: Storage): MediaSource? {
-        return getIndexEntry(storage)?.let {
-            return HlsMediaSource.Factory(
+    private fun getMediaSource(storage: Storage): Pair<HlsMediaSource, Map<String, SingleSampleMediaSource>>? {
+        return getIndexEntry(storage)?.let { indexEntry ->
+            HlsMediaSource.Factory(
                 CacheDataSource.Factory()
                     .setCache(getCache(storage))
                     .setCacheWriteDataSinkFactory(null)
             ).createMediaSource(
-                it.request.toMediaItem()
-            )
+                indexEntry.request.toMediaItem()
+            ) to subtitles.mapValues { (language, url) ->
+                SingleSampleMediaSource.Factory(
+                    CacheDataSource.Factory()
+                        .setCache(getCache(storage))
+                        .setCacheWriteDataSinkFactory(null)
+                ).createMediaSource(
+                    MediaItem.Subtitle(
+                        Uri.parse(url), // requires that the HLS playlist links to the API resource
+                        MimeTypes.TEXT_VTT,
+                        language,
+                        C.SELECTION_FLAG_DEFAULT
+                    ),
+                    C.TIME_UNSET
+                )
+            }
         }
     }
 
     override val size: Long
         get() = getIndexEntry(storage)?.bytesDownloaded ?: 0L
 
-    final override val download: MediaSource?
+    final override val download: Pair<HlsMediaSource, Map<String, SingleSampleMediaSource>>?
         get() = getMediaSource(context.internalStorage)
             ?: context.sdcardStorage?.let { getMediaSource(it) }
-
-    /*val subs: Map<String, MediaSource>?
-        get() {
-            fun getMediaSource(language: String, url: String): MediaSource =
-                SingleSampleMediaSource.Factory(
-                    CacheDataSource.Factory()
-                        .setCache(cache)
-                )
-                    .createMediaSource(
-                        MediaItem.Subtitle(
-                            Uri.parse(url),
-                            MimeTypes.TEXT_VTT,
-                            language,
-                            C.SELECTION_FLAG_DEFAULT
-                        ),
-                        C.TIME_UNSET
-                    )
-
-            val originalStorage = storage
-            return try {
-                storage = context.internalStorage
-                indexEntry!!
-                subtitles?.entries?.associate {
-                    it.key to getMediaSource(it.key, it.value)
-                }
-            } catch (e: Exception) {
-                storage = context.sdcardStorage!!
-                indexEntry!!
-                subtitles?.entries?.associate {
-                    it.key to getMediaSource(it.key, it.value)
-                }
-            } finally {
-                storage = originalStorage
-            }
-        }*/
 
     final override val request
         get() = HlsVideoDownloadRequest(
             url!!,
             quality,
-            //subtitles,
             storage,
             title,
             true,

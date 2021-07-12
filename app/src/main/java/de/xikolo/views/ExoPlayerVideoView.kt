@@ -11,14 +11,13 @@ import com.google.android.exoplayer2.ExoPlaybackException
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.PlaybackParameters
 import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.Renderer
 import com.google.android.exoplayer2.SimpleExoPlayer
-import com.google.android.exoplayer2.Timeline
 import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.MergingMediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.SingleSampleMediaSource
 import com.google.android.exoplayer2.source.TrackGroupArray
+import com.google.android.exoplayer2.source.hls.HlsManifest
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
@@ -30,6 +29,8 @@ import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
 import com.google.android.exoplayer2.util.MimeTypes
 import com.google.android.exoplayer2.util.Util
 import com.google.android.exoplayer2.video.VideoListener
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 open class ExoPlayerVideoView : PlayerView {
 
@@ -152,9 +153,6 @@ open class ExoPlayerVideoView : PlayerView {
                 }
 
                 override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                }
-
-                override fun onTimelineChanged(timeline: Timeline, reason: Int) {
                 }
             }
         )
@@ -292,20 +290,32 @@ open class ExoPlayerVideoView : PlayerView {
             DefaultTrackSelector.ParametersBuilder(context)
                 .apply {
                     if (quality != null) {
-                        setMaxVideoBitrate(quality.toInt()) // ToDo
-                        setMinVideoBitrate(quality.toInt())
+                        val manifest = exoplayer.currentManifest as? HlsManifest
+                        val formats = manifest?.masterPlaylist?.variants?.map { it.format }
+                        if (formats?.isNotEmpty() == true) {
+                            val lowestBitrate = formats.minOf { it.bitrate }
+                            val highestBitrate = formats.maxOf { it.bitrate }
+                            val targetBitrate = lowestBitrate + quality *
+                                (highestBitrate - lowestBitrate)
+                            val closestBitrate = formats.minByOrNull {
+                                abs(it.bitrate - targetBitrate).roundToInt()
+                            }!!.bitrate
+
+                            setMaxVideoBitrate(closestBitrate + 1)
+                            setMinVideoBitrate(closestBitrate - 1)
+                        }
                     }
                 }
         )
     }
 
     fun scaleToFill() {
-        exoplayer.videoScalingMode = Renderer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        exoplayer.videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
     }
 
     fun scaleToFit() {
-        exoplayer.videoScalingMode = Renderer.VIDEO_SCALING_MODE_DEFAULT
+        exoplayer.videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
     }
 

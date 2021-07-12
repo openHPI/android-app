@@ -225,6 +225,9 @@ object FileDownloadHandler : DownloadHandler<FileDownloadIdentifier, FileDownloa
             disabledNotificationsManager.addListener(listener)
             enabledNotificationsManager.addListener(listener)
         }
+
+        enabledNotificationsManager.resumeAll()
+        disabledNotificationsManager.resumeAll()
     }
 
     private val listeners: MutableMap<Int, ((DownloadStatus) -> Unit)?> = mutableMapOf()

@@ -70,7 +70,7 @@ object HlsVideoDownloadHandler :
 
     init {
         Log.i(TAG, "Starting $TAG")
-        DownloadService.start(
+        DownloadService.startForeground(
             context,
             HlsVideoDownloadForegroundService::class.java
         )
@@ -119,7 +119,7 @@ object HlsVideoDownloadHandler :
                         getDatabaseProvider(context),
                         cache,
                         dataSourceFactory,
-                        Executors.newSingleThreadExecutor()
+                        Executors.newCachedThreadPool()
                     ).apply {
                         maxParallelDownloads = 5
                         minRetryCount = 1
@@ -156,7 +156,10 @@ object HlsVideoDownloadHandler :
                                     downloadManager: DownloadManager,
                                     download: Download
                                 ) {
-                                    Log.d(TAG, "Download successfully removed: ${download.request.id}")
+                                    Log.d(
+                                        TAG,
+                                        "Download successfully removed: ${download.request.id}"
+                                    )
                                     val identifier = download.request.id
                                     val listener = listeners[identifier]
                                     listeners.remove(identifier)
@@ -253,6 +256,7 @@ object HlsVideoDownloadHandler :
                             estimatedSize
                         ).encode()
                     )
+                    downloadRequest.customCacheKey
                     helper.release()
 
                     val identifier = downloadRequest.id
